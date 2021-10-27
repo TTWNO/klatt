@@ -1,7 +1,7 @@
 #[path = "lib_tests.rs"]
 mod tests;
 
-use rand::prelude::*;
+// use rand::prelude::*;
 use std::f64::consts;
 
 //--- Filters ------------------------------------------------------------------
@@ -95,6 +95,7 @@ impl LpFilter1 {
         self.y1 = 0.0;
     }
 
+    #[allow(dead_code)]
     pub fn set_mute(&mut self) {
         self.passthrough = false;
         self.muted = true;
@@ -103,7 +104,8 @@ impl LpFilter1 {
 
     /// Returns the polynomial coefficients of the filter transfer function in the z-plane.
     /// The returned array contains the top and bottom coefficients of the rational fraction, ordered in ascending powers.
-    pub fn getTransferFunctionCoefficients(&self) -> Vec<Vec<f64>> {
+    #[allow(dead_code)]
+    pub fn get_transfer_function_coefficients(&self) -> Vec<Vec<f64>> {
         if self.passthrough {
             return vec![vec![1.0], vec![1.0]];
         }
@@ -240,7 +242,8 @@ impl Resonator {
 
     /// Returns the polynomial coefficients of the filter transfer function in the z-plane.
     /// The returned array contains the top and bottom coefficients of the rational fraction, ordered in ascending powers.
-    pub fn getTransferFunctionCoefficients(&self) -> Vec<Vec<f64>> {
+    #[allow(dead_code)]
+    pub fn get_transfer_function_coefficients(&self) -> Vec<Vec<f64>> {
         if self.passthrough {
             return vec![vec![1.0], vec![1.0]];
         }
@@ -314,11 +317,12 @@ impl AntiResonator {
             muted: false,
         }
     }
-    // Adjusts the filter parameters without resetting the inner state.
-    // @param f
-    //    Frequency of anti-resonator in Hz.
-    // @param bw
-    //    bandwidth of anti-resonator in Hz.
+
+    /// Adjusts the filter parameters without resetting the inner state.
+    /// @param f
+    ///    Frequency of anti-resonator in Hz.
+    /// @param bw
+    ///    bandwidth of anti-resonator in Hz.
     pub fn set(&mut self, f: f64, bw: f64) {
         // SVN: Skip parameter check
         //    if (f <= 0 || f >= this.sampleRate / 2 || bw <= 0 || !isFinite(f) || !isFinite(bw)) {
@@ -340,13 +344,16 @@ impl AntiResonator {
         self.passthrough = false;
         self.muted = false;
     }
+
     pub fn set_passthrough(&mut self) {
         self.passthrough = true;
         self.muted = false;
         self.x1 = 0.0;
         self.x2 = 0.0;
     }
-    pub fn setMute(&mut self) {
+
+    #[allow(dead_code)]
+    pub fn set_mute(&mut self) {
         self.passthrough = false;
         self.muted = true;
         self.x1 = 0.0;
@@ -355,7 +362,8 @@ impl AntiResonator {
 
     /// Returns the polynomial coefficients of the filter transfer function in the z-plane.
     /// The returned array contains the top and bottom coefficients of the rational fraction, ordered in ascending powers.
-    pub fn getTransferFunctionCoefficients(&self) -> Vec<Vec<f64>> {
+    #[allow(dead_code)]
+    pub fn get_transfer_function_coefficients(&self) -> Vec<Vec<f64>> {
         if self.passthrough {
             return vec![vec![1.0], vec![1.0]];
         }
@@ -411,7 +419,8 @@ impl DifferencingFilter {
     }
     // Returns the polynomial coefficients of the filter transfer function in the z-plane.
     // The returned array contains the top and bottom coefficients of the rational fraction, ordered in ascending powers.
-    pub fn getTransferFunctionCoefficients() -> Vec<Vec<f64>> {
+    #[allow(dead_code)]
+    pub fn get_transfer_function_coefficients() -> Vec<Vec<f64>> {
         return vec![vec![1.0, -1.0], vec![1.0]];
     }
     // Performs a filter step.
@@ -665,7 +674,7 @@ pub struct Generator<'a> {
     /// nasal antiformant filter for cascade branch
     nasal_antiformant_casc: AntiResonator,
     /// oral formant filters for cascade branch
-    oralFormantCasc: Vec<Resonator>,
+    oral_formant_casc: Vec<Resonator>,
 
     // Parallel branch variables:
     /// nasal formant filter for parallel branch
@@ -678,7 +687,6 @@ pub struct Generator<'a> {
 
 impl<'a> Generator<'a> {
     pub fn new(m_parms: &MainParms) -> Generator {
-        let mut rng = StdRng::seed_from_u64(32);
         // let mut rng = rand::thread_rng();
 
         let mut generator = Generator {
@@ -695,7 +703,7 @@ impl<'a> Generator<'a> {
             // Glottal source:
             impulsive_g_source: None,
             natural_g_source: None,
-            glottal_source: |g: &mut Generator| 0.0,
+            glottal_source: |_g: &mut Generator| 0.0,
 
             // Create noise sources:
             aspiration_source_casc: LpNoiseSource::new(m_parms.sample_rate),
@@ -705,11 +713,11 @@ impl<'a> Generator<'a> {
             // Initialize cascade branch variables:
             nasal_formant_casc: Resonator::new(m_parms.sample_rate),
             nasal_antiformant_casc: AntiResonator::new(m_parms.sample_rate),
-            oralFormantCasc: Vec::with_capacity(maxOralFormants),
+            oral_formant_casc: Vec::with_capacity(MAX_ORAL_FORMANTS),
 
             // Initialize parallel branch variables:
             nasal_formant_par: Resonator::new(m_parms.sample_rate),
-            oral_formant_par: Vec::with_capacity(maxOralFormants),
+            oral_formant_par: Vec::with_capacity(MAX_ORAL_FORMANTS),
             differencing_filter_par: DifferencingFilter::new(),
         };
 
@@ -719,9 +727,9 @@ impl<'a> Generator<'a> {
             .output_lp_filter
             .set(0.0, (m_parms.sample_rate as f64) / 2.0, None);
 
-        for _ in 0..maxOralFormants {
+        for _ in 0..MAX_ORAL_FORMANTS {
             generator
-                .oralFormantCasc
+                .oral_formant_casc
                 .push(Resonator::new(m_parms.sample_rate));
             generator
                 .oral_formant_par
@@ -774,7 +782,7 @@ impl<'a> Generator<'a> {
         // if within glottal open phase
         if p_state.position_in_period < p_state.open_phase_length {
             // add breathiness (turbulence)
-            voice += get_white_noise() * self.f_state.breathinessLin;
+            voice += get_white_noise() * self.f_state.breathiness_lin;
         }
 
         let cascade_out = match f_parms.cascade_enabled {
@@ -789,7 +797,7 @@ impl<'a> Generator<'a> {
 
         let mut out = cascade_out + parallel_out;
         out = self.output_lp_filter.step(out);
-        out *= self.f_state.gainLin;
+        out *= self.f_state.gain_lin;
         return out;
     }
 
@@ -797,7 +805,7 @@ impl<'a> Generator<'a> {
         let f_parms = self.f_parms.unwrap();
         // let fState = self.fState;
         let p_state = self.p_state.as_ref().unwrap();
-        let cascade_voice = voice * self.f_state.cascadeVoicingLin;
+        let cascade_voice = voice * self.f_state.cascade_voicing_lin;
         let current_aspiration_mod = match p_state.position_in_period {
             _ if p_state.position_in_period >= p_state.period_length / 2 => {
                 f_parms.cascade_aspiration_mod
@@ -805,13 +813,13 @@ impl<'a> Generator<'a> {
             _ => 0.0,
         };
         let aspiration = self.aspiration_source_casc.get_next()
-            * self.f_state.cascadeAspirationLin
+            * self.f_state.cascade_aspiration_lin
             * (1.0 - current_aspiration_mod);
         let mut v = cascade_voice + aspiration;
         v = self.nasal_antiformant_casc.step(v);
         v = self.nasal_formant_casc.step(v);
-        for i in 0..maxOralFormants {
-            v = self.oralFormantCasc[i].step(v);
+        for i in 0..MAX_ORAL_FORMANTS {
+            v = self.oral_formant_casc[i].step(v);
         }
         return v;
     }
@@ -820,7 +828,7 @@ impl<'a> Generator<'a> {
         let f_parms = self.f_parms.unwrap();
         // let fState = self.fState;
         let p_state = self.p_state.as_ref().unwrap();
-        let parallel_voice = voice * self.f_state.parallelVoicingLin;
+        let parallel_voice = voice * self.f_state.parallel_voicing_lin;
         let current_aspiration_mod = match p_state.position_in_period {
             _ if p_state.position_in_period >= p_state.period_length / 2 => {
                 f_parms.parallel_aspiration_mod
@@ -828,7 +836,7 @@ impl<'a> Generator<'a> {
             _ => 0.0,
         };
         let aspiration = self.aspiration_source_par.get_next()
-            * self.f_state.parallelAspirationLin
+            * self.f_state.parallel_aspiration_lin
             * (1.0 - current_aspiration_mod);
         let source = parallel_voice + aspiration;
         let source_difference = self.differencing_filter_par.step(source);
@@ -844,13 +852,13 @@ impl<'a> Generator<'a> {
             _ => 0.0,
         };
         let frication_noise = self.frication_source_par.get_next()
-            * self.f_state.fricationLin
+            * self.f_state.frication_lin
             * (1.0 - current_frication_mod);
         let source2 = source_difference + frication_noise;
         let mut v = 0.0;
         v += self.nasal_formant_par.step(source); // nasal formant is directly applied to source
         v += self.oral_formant_par[0].step(source); // F1 is directly applied to source
-        for i in 0..maxOralFormants {
+        for i in 0..MAX_ORAL_FORMANTS {
             // F2 to F6
             let alternating_sign = match i {
                 _ if i % 2 == 0 => 1.0,
@@ -858,7 +866,7 @@ impl<'a> Generator<'a> {
             }; // (refer to Klatt (1980) Fig. 13)
             v += alternating_sign * self.oral_formant_par[i].step(source2);
         } // F2 to F6 are applied to source difference + frication
-        v += self.f_state.parallelBypassLin * source2; // bypass is applied to source difference + frication
+        v += self.f_state.parallel_bypass_lin * source2; // bypass is applied to source difference + frication
         return v;
     }
 
@@ -901,27 +909,27 @@ impl<'a> Generator<'a> {
     fn start_using_new_frame_parameters(&mut self) {
         let m_parms = self.m_parms;
         let f_parms = self.f_parms.unwrap(); // SVN: Option unwarap
-        self.f_state.breathinessLin = db_to_lin(f_parms.breathiness_db);
-        self.f_state.gainLin = db_to_lin(f_parms.gain_db);
+        self.f_state.breathiness_lin = db_to_lin(f_parms.breathiness_db);
+        self.f_state.gain_lin = db_to_lin(f_parms.gain_db);
         // fState.gainLin = db_to_lin(fParms.gain_db || 0); // SVN: Ommited chec for defined value
         set_tilt_filter(&mut self.tilt_filter, f_parms.tilt_db);
 
         // Adjust cascade branch:
-        self.f_state.cascadeVoicingLin = db_to_lin(f_parms.cascade_voicing_db);
-        self.f_state.cascadeAspirationLin = db_to_lin(f_parms.cascade_aspiration_db);
+        self.f_state.cascade_voicing_lin = db_to_lin(f_parms.cascade_voicing_db);
+        self.f_state.cascade_aspiration_lin = db_to_lin(f_parms.cascade_aspiration_db);
         set_nasal_formant_casc(&mut self.nasal_formant_casc, f_parms);
         set_nasal_antiformant_casc(&mut self.nasal_antiformant_casc, f_parms);
-        for i in 0..maxOralFormants {
-            set_oral_formant_casc(&mut self.oralFormantCasc[i], f_parms, i);
+        for i in 0..MAX_ORAL_FORMANTS {
+            set_oral_formant_casc(&mut self.oral_formant_casc[i], f_parms, i);
         }
 
         // Adjust parallel branch:
-        self.f_state.parallelVoicingLin = db_to_lin(f_parms.parallel_voicing_db);
-        self.f_state.parallelAspirationLin = db_to_lin(f_parms.parallel_aspiration_db);
-        self.f_state.fricationLin = db_to_lin(f_parms.frication_db);
-        self.f_state.parallelBypassLin = db_to_lin(f_parms.parallel_bypass_db);
+        self.f_state.parallel_voicing_lin = db_to_lin(f_parms.parallel_voicing_db);
+        self.f_state.parallel_aspiration_lin = db_to_lin(f_parms.parallel_aspiration_db);
+        self.f_state.frication_lin = db_to_lin(f_parms.frication_db);
+        self.f_state.parallel_bypass_lin = db_to_lin(f_parms.parallel_bypass_db);
         set_nasal_formant_par(&mut self.nasal_formant_par, f_parms);
-        for i in 0..maxOralFormants {
+        for i in 0..MAX_ORAL_FORMANTS {
             set_oral_formant_par(&mut self.oral_formant_par[i], m_parms, f_parms, i);
         }
     }
@@ -1102,13 +1110,14 @@ fn db_to_lin(db: f64) -> f64 {
 
 //--- Main logic ---------------------------------------------------------------
 
+#[allow(dead_code)]
 pub enum GlottalSourceType {
     Impulsive,
     Natural,
     Noise,
 }
 
-pub const maxOralFormants: usize = 6;
+pub const MAX_ORAL_FORMANTS: usize = 6;
 
 /// Parameters for the whole sound.
 pub struct MainParms {
@@ -1182,37 +1191,37 @@ pub struct FrameParms {
 #[derive(Debug)]
 pub struct FrameState {
     /// linear breathiness level
-    pub breathinessLin: f64,
+    pub breathiness_lin: f64,
     /// linear overall gain
-    pub gainLin: f64,
+    pub gain_lin: f64,
     // Cascade branch:
     /// linear voicing amplitude for cascade branch
-    pub cascadeVoicingLin: f64,
+    pub cascade_voicing_lin: f64,
     /// linear aspiration amplitude for cascade branch
-    pub cascadeAspirationLin: f64,
+    pub cascade_aspiration_lin: f64,
 
     // Parallel branch:
     /// linear voicing amplitude for parallel branch
-    parallelVoicingLin: f64,
+    parallel_voicing_lin: f64,
     /// linear aspiration amplitude for parallel branch
-    parallelAspirationLin: f64,
+    parallel_aspiration_lin: f64,
     /// linear frication noise level
-    fricationLin: f64,
+    frication_lin: f64,
     /// linear parallel bypass level
-    parallelBypassLin: f64,
+    parallel_bypass_lin: f64,
 }
 
 impl FrameState {
     pub fn new() -> FrameState {
         FrameState {
-            breathinessLin: 0.0,
-            gainLin: 0.0,
-            cascadeVoicingLin: 0.0,
-            cascadeAspirationLin: 0.0,
-            parallelVoicingLin: 0.0,
-            parallelAspirationLin: 0.0,
-            fricationLin: 0.0,
-            parallelBypassLin: 0.0,
+            breathiness_lin: 0.0,
+            gain_lin: 0.0,
+            cascade_voicing_lin: 0.0,
+            cascade_aspiration_lin: 0.0,
+            parallel_voicing_lin: 0.0,
+            parallel_aspiration_lin: 0.0,
+            frication_lin: 0.0,
+            parallel_bypass_lin: 0.0,
         }
     }
 }
@@ -1231,6 +1240,7 @@ pub struct PeriodState {
     /// current sample position within F0 period
     pub position_in_period: usize,
     /// LP filtered noise
+    #[allow(dead_code)]
     lp_noise: usize,
 }
 
