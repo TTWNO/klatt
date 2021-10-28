@@ -8,8 +8,9 @@ use std::f64::consts;
 
 /// A first-order IIR LP filter.
 ///
-/// Formulas:
-///  Variables:
+/// # Formulas:
+/// ## Variables:
+/// ```
 ///    x = input samples
 ///    y = output samples
 ///    a = first filter coefficient
@@ -17,21 +18,33 @@ use std::f64::consts;
 ///    f = frequency in Hz
 ///    w = 2 * PI * f / sampleRate
 ///    g = gain at frequency f
-///  Filter function:
+/// ```
+/// ## Filter function:
+/// ```
 ///    y[n] = a * x[n] + b * y[n-1]
-///  Transfer function:
+/// ```
+/// ## Transfer function:
+/// ```
 ///    H(w) = a / ( 1 - b * e^(-jw) )
-///  Frequency response:
+/// ```
+/// ## Frequency response:
+/// ```
 ///    |H(w)| = a / sqrt(1 - 2b * cos(w) + b^2)
-///  Gain at DC:
+/// ```
+/// ## Gain at DC:
+/// ```
 ///    |H(0)| = a / sqrt(1 - 2b * cos(0) + b^2)
 ///           = a / sqrt(1 - 2b + b^2)
 ///           = a / (1 - b)                                 for b < 1
-///  Cutoff frequency for LP filter (frequency with relative gain 0.5, about -3 dB):
+/// ```
+/// ## Cutoff frequency for LP filter (frequency with relative gain 0.5, about -3 dB):
+/// ```
 ///    |H(fCutoff)| = |H(0)| / 2
 ///    a / sqrt(1 - 2b * cos(w) + b^2) = a / (2 * (1 - b))
 ///    fCutoff = acos((-3b^2 + 8b - 3) / 2b) * sampleRate / (2 * PI)
-///  Determine b for a given gain g at frequency f and |H(0)| = 1:
+/// ```
+/// ## Determine b for a given gain g at frequency f and |H(0)| = 1:
+/// ```
 ///    a = 1 - b
 ///    g = (1 - b) / sqrt(1 - 2b * cos(w) + b^2)
 ///    g * sqrt(1 - 2b * cos(w) + b^2) = 1 - b
@@ -41,6 +54,7 @@ use std::f64::consts;
 ///    Substitute: q = (1 - g^2 * cos(w)) / (1 - g^2)
 ///    b^2 - 2 * q * b + 1 = 0
 ///    b = q - sqrt(q^2 - 1)                                or q + sqrt(q^2 - 1)
+/// ```
 struct LpFilter1 {
     sample_rate: usize,
     /// filter coefficient a
@@ -59,8 +73,8 @@ impl LpFilter1 {
     fn new(sample_rate: usize) -> LpFilter1 {
         LpFilter1 {
             sample_rate: sample_rate,
-            a: 0.0, //SVN: default falue
-            b: 0.0, //SVN: default falue
+            a: 0.0, // SVN: default value
+            b: 0.0, // SVN: default value
             y1: 0.0,
             passthrough: true,
             muted: false,
@@ -68,13 +82,13 @@ impl LpFilter1 {
     }
 
     /// Adjusts the filter parameters without resetting the inner state.
-    /// @param f
-    ///    Frequency at which the gain is specified.
-    /// @param g
-    ///    Gain at frequency f. Between 0 and 1 for LP filter. Greater than 1 for HP filter.
-    /// @param extraGain
-    ///    Extra gain factor. This is the resulting DC gain.
-    ///    The resulting gain at `f` will be `g * extraGain`.
+    /// ### params
+    /// ```
+    ///    f = Frequency at which the gain is specified.
+    ///    g = Gain at frequency f. Between 0 and 1 for LP filter. Greater than 1 for HP filter.
+    ///    extra_gain = Extra gain factor. This is the resulting DC gain.
+    /// ```
+    /// The resulting gain at `f` will be `g * extraGain`.
     pub fn set(&mut self, f: f64, g: f64, extra_gain: Option<f64>) {
         let extra_gain = extra_gain.unwrap_or(1.0);
         // SVN: skipped error handling
@@ -116,9 +130,11 @@ impl LpFilter1 {
     }
 
     /// Performs a filter step.
-    /// @param x
-    ///    Input signal value.
-    /// @returns
+    /// ### params
+    /// ```
+    ///    x = Input signal value.
+    /// ```
+    /// ### returns
     ///    Output signal value.
     pub fn step(&mut self, x: f64) -> f64 {
         if self.passthrough {
@@ -137,8 +153,9 @@ impl LpFilter1 {
 /// This is a second order IIR filter.
 /// With f=0 it can also be used as a low-pass filter.
 ///
-/// Formulas:
-///  Variables:
+/// # Formulas:
+/// ## Variables:
+/// ```
 ///    x = input samples
 ///    y = output samples
 ///    a/b/c = filter coefficients
@@ -148,19 +165,30 @@ impl LpFilter1 {
 ///    w0 = 2 * PI * f0 / sampleRate
 ///    bw = Bandwidth in Hz
 ///    r = exp(- PI * bw / sampleRate)
-///  Filter function:
+/// ```
+/// ## Filter function:
+/// ```
 ///    y[n] = a * x[n] + b * y[n-1] + c * y[n-2]
-///  Transfer function:
+/// ```
+/// ## Transfer function:
+/// ```
 ///    H(w) = a / ( 1 - b * e^(-jw) - c * e^(-2jw) )
-///  Frequency response:
+/// ```
+/// ## Frequency response:
+/// ```
 ///    |H(w)| = a / ( sqrt(1 + r^2 - 2 * r * cos(w - w0)) * sqrt(1 + r^2 - 2 * r * cos(w + w0)) )
-///  Gain at DC:
+/// ```
+/// ## Gain at DC:
+/// ```
 ///    |H(0)| = a / ( sqrt(1 + r^2 - 2 * r * cos(0 - w0)) * sqrt(1 + r^2 - 2 * r * cos(0 + w0)) )
 ///           = a / (1 + r^2 - 2 * r * cos(w0))
 ///           = a / (1 - c - b)
-///  Gain at the resonance frequency:
+/// ```
+/// ## Gain at the resonance frequency:
+/// ```
 ///    |H(f0)| = a / sqrt(1 + r^2 - 2 * r)
 ///            = a / (1 - r)
+/// ```
 struct Resonator {
     sample_rate: usize,
     /// filter coefficient a
@@ -178,8 +206,10 @@ struct Resonator {
     muted: bool,
 }
 impl Resonator {
-    /// @param sampleRate
-    ///    Sample rate in Hz.
+    /// ### params
+    /// ```
+    /// sample_rate = Sample rate in Hz.
+    /// ```
     fn new(sample_rate: usize) -> Resonator {
         Resonator {
             sample_rate: sample_rate,
@@ -194,12 +224,12 @@ impl Resonator {
         }
     }
     /// Adjusts the filter parameters without resetting the inner state.
-    /// @param f
-    ///    Frequency of resonator in Hz. May be 0 for LP filtering.
-    /// @param bw
-    ///    Bandwidth of resonator in Hz.
-    /// @param dcGain
-    ///    DC gain level.
+    /// ### params
+    /// ```
+    /// f = Frequency of resonator in Hz. May be 0 for LP filtering.
+    /// bw = Bandwidth of resonator in Hz.
+    /// dc_gain = DC gain level.
+    /// ```
     pub fn set(&mut self, f: f64, bw: f64, dc_gain: Option<f64>) {
         let dc_gain = dc_gain.unwrap_or(1.0);
         // SVN: Paramters check
@@ -254,9 +284,11 @@ impl Resonator {
     }
 
     /// Performs a filter step.
-    /// @param x
-    ///    Input signal value.
-    /// @returns
+    /// ### params
+    /// ```
+    ///    x = Input signal value.
+    /// ```
+    /// ### returns
     ///    Output signal value.
     pub fn step(&mut self, x: f64) -> f64 {
         if self.passthrough {
@@ -275,17 +307,23 @@ impl Resonator {
 /// A Klatt anti-resonator.
 /// This is a second order FIR filter.
 ///
-/// Formulas:
-///  Variables:
+/// # Formulas:
+/// ## Variables:
+/// ```
 ///    x = input samples
 ///    y = output samples
 ///    a/b/c = filter coefficients
 ///    f = frequency in Hz
 ///    w = 2 * PI * f / sampleRate
-///  Filter function:
+/// ```
+/// # Filter function:
+/// ```
 ///    y[n] = a * x[n] + b * x[n-1] + c * x[n-2]
-///  Transfer function:
+/// ```
+/// # Transfer function:
+/// ```
 ///    H(w) = a + b * e^(-jw) + c * e^(-2jw)
+/// ```
 struct AntiResonator {
     sample_rate: usize,
     /// filter coefficient a
@@ -302,8 +340,10 @@ struct AntiResonator {
     muted: bool,
 }
 impl AntiResonator {
-    // @param sampleRate
-    //    Sample rate in Hz.
+    /// ### params
+    /// ```
+    ///    sample_rate = Sample rate in Hz.
+    /// ```
     pub fn new(sample_rate: usize) -> AntiResonator {
         AntiResonator {
             sample_rate: sample_rate,
@@ -319,10 +359,11 @@ impl AntiResonator {
     }
 
     /// Adjusts the filter parameters without resetting the inner state.
-    /// @param f
-    ///    Frequency of anti-resonator in Hz.
-    /// @param bw
-    ///    bandwidth of anti-resonator in Hz.
+    /// ### params
+    /// ```
+    ///    f = Frequency of anti-resonator in Hz.
+    ///    bw = bandwidth of anti-resonator in Hz.
+    /// ```
     pub fn set(&mut self, f: f64, bw: f64) {
         // SVN: Skip parameter check
         //    if (f <= 0 || f >= this.sampleRate / 2 || bw <= 0 || !isFinite(f) || !isFinite(bw)) {
@@ -372,11 +413,13 @@ impl AntiResonator {
         }
         return vec![vec![self.a, self.b, self.c], vec![1.0]];
     }
-    // Performs a filter step.
-    // @param x
-    //    Input signal value.
-    // @returns
-    //    Output signal value.
+    /// Performs a filter step.
+    /// ### params
+    /// ```
+    ///    x = Input signal value.
+    /// ```
+    /// ### returns
+    ///    Output signal value.
     pub fn step(&mut self, x: f64) -> f64 {
         if self.passthrough {
             return x;
@@ -391,26 +434,36 @@ impl AntiResonator {
     }
 }
 
-// A differencing filter.
-// This is a first-order FIR HP filter.
-//
-// Problem: The filter curve depends on the sample rate.
-// TODO: Compensate the effect of the sample rate.
-//
-// Formulas:
-//  Variables:
-//    x = input samples
-//    y = output samples
-//    f = frequency in Hz
-//    w = 2 * PI * f / sampleRate
-//  Filter function:
-//    y[n] = x[n] - x[n-1]
-//  Transfer function:
-//    H(w) = 1 - e^(-jw)
-//  Frequency response:
-//    |H(w)| = sqrt(2 - 2 * cos(w))
+/// A differencing filter.
+/// This is a first-order FIR HP filter.
+///
+/// # Problem:
+/// The filter curve depends on the sample rate.
+/// # TODO:
+/// Compensate the effect of the sample rate.
+///
+/// # Formulas:
+/// ## Variables:
+/// ```
+///    x = input samples
+///    y = output samples
+///    f = frequency in Hz
+///    w = 2 * PI * f / sampleRate
+/// ```
+/// ## Filter function:
+/// ```
+///    y[n] = x[n] - x[n-1]
+/// ```
+/// ## Transfer function:
+/// ```
+///    H(w) = 1 - e^(-jw)
+/// ```
+/// ## Frequency response:
+/// ```
+///    |H(w)| = sqrt(2 - 2 * cos(w))
+/// ```
 struct DifferencingFilter {
-    // x[n-1], last input value
+    /// x[n-1], last input value
     x1: f64,
 }
 impl DifferencingFilter {
@@ -423,11 +476,13 @@ impl DifferencingFilter {
     pub fn get_transfer_function_coefficients() -> Vec<Vec<f64>> {
         return vec![vec![1.0, -1.0], vec![1.0]];
     }
-    // Performs a filter step.
-    // @param x
-    //    Input signal value.
-    // @returns
-    //    Output signal value.
+    /// Performs a filter step.
+    /// ### params
+    /// ```
+    ///    x = Input signal value.
+    /// ```
+    /// ### returns
+    ///    Output signal value.
     pub fn step(&mut self, x: f64) -> f64 {
         let y = x - self.x1;
         self.x1 = x;
@@ -437,7 +492,7 @@ impl DifferencingFilter {
 
 //--- Noise sources ------------------------------------------------------------
 
-// Returns a random number within the range -1 .. 1.
+/// Returns a random number within the range -1 .. 1.
 fn get_white_noise() -> f64 {
     //return Math.random() * 2 - 1; }                         // problem: -1 is included but +1 is not included
     // let mut rng = rand::thread_rng();
@@ -447,7 +502,7 @@ fn get_white_noise() -> f64 {
     return 0.5;
 }
 
-// A low-pass filtered noise source.
+/// A low-pass filtered noise source.
 struct LpNoiseSource {
     lp_filter: LpFilter1,
 }
@@ -474,7 +529,7 @@ impl LpNoiseSource {
         lp_noise_source
     }
 
-    // Returns an LP-filtered random number.
+    /// Returns an LP-filtered random number.
     pub fn get_next(&mut self) -> f64 {
         let x = get_white_noise();
         return self.lp_filter.step(x);
@@ -482,11 +537,13 @@ impl LpNoiseSource {
 }
 //--- Glottal sources ----------------------------------------------------------
 
-// Generates a glottal source signal by LP filtering a pulse train.
+/// Generates a glottal source signal by LP filtering a pulse train.
 struct ImpulsiveGlottalSource {
     sample_rate: usize,
-    resonator: Option<Resonator>, // resonator used as an LP filter
-    position_in_period: usize,    // current sample position within F0 period
+    /// resonator used as an LP filter
+    resonator: Option<Resonator>,
+    /// current sample position within F0 period
+    position_in_period: usize,
 }
 impl ImpulsiveGlottalSource {
     pub fn new(sample_rate: usize) -> Self {
@@ -496,8 +553,10 @@ impl ImpulsiveGlottalSource {
             position_in_period: 0,
         }
     }
-    // @param openPhaseLength
-    //    Duration of the open glottis phase of the F0 period, in samples.
+    /// ### params
+    /// ```
+    ///    open_phase_length = Duration of the open glottis phase of the F0 period, in samples.
+    /// ```
     pub fn start_period(&mut self, open_phase_length: usize) {
         if open_phase_length == 0 {
             self.resonator = None;
@@ -531,8 +590,8 @@ impl ImpulsiveGlottalSource {
 }
 
 /// Generates a "natural" glottal source signal according to the KLGLOTT88 model.
-/// Formula of the glottal flow: t^2 - t^3
-/// Formula of the derivative: 2 * t - 3 * t^2
+/// Formula of the glottal flow: `t^2 - t^3`
+/// Formula of the derivative: `2 * t - 3 * t^2`
 /// The derivative is used as the glottal source.
 ///
 /// At the end of the open glottal phase there is an abrupt jump from the minimum value to zero.
@@ -564,8 +623,10 @@ impl NaturalGlottalSource {
         natural_glottal_source
     }
 
-    /// @param openPhaseLength
-    ///    Duration of the open glottis phase of the F0 period, in samples.
+    /// ### params
+    /// ```
+    ///    open_phase_length = Duration of the open glottis phase of the F0 period, in samples.
+    /// ```
     pub fn start_period(&mut self, open_phase_length: usize) {
         self.open_phase_length = open_phase_length;
         self.x = 0.0;
@@ -1074,13 +1135,13 @@ fn set_oral_formant_par(
 /// A value of flutterLevel = 0.25 results in synthetic vowels with a quite
 /// realistic deviation from constant pitch.
 ///
-/// @param f0
-///    Fundamental frequency.
-/// @param flutterLevel
-///    Flutter level between 0 and 1.
-/// @param time
-///    Relative signal position in seconds.
-/// @returns
+/// ### params
+/// ```
+///    f0 = Fundamental frequency.
+///    flutter_level = Flutter level between 0 and 1.
+///    time = Relative signal position in seconds.
+/// ```
+/// ### returns
 ///    Modulated fundamental frequency.
 fn perform_frequency_modulation(f0: f64, flutter_level: f64, time: f64) -> f64 {
     println!(
@@ -1166,6 +1227,7 @@ pub struct FrameParms {
     pub nasal_antiformant_freq: f64,
     /// nasal antiformant bandwidth in Hz, or NaN
     pub nasal_antiformant_bw: f64,
+
     // Parallel branch:
     /// true = parallel branch enabled
     pub parallel_enabled: bool,
@@ -1194,6 +1256,7 @@ pub struct FrameState {
     pub breathiness_lin: f64,
     /// linear overall gain
     pub gain_lin: f64,
+
     // Cascade branch:
     /// linear voicing amplitude for cascade branch
     pub cascade_voicing_lin: f64,
