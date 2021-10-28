@@ -73,8 +73,8 @@ impl LpFilter1 {
     fn new(sample_rate: usize) -> LpFilter1 {
         LpFilter1 {
             sample_rate: sample_rate,
-            a: 0.0, // SVN: default value
-            b: 0.0, // SVN: default value
+            a: 0.0,
+            b: 0.0,
             y1: 0.0,
             passthrough: true,
             muted: false,
@@ -1317,14 +1317,13 @@ pub fn generate_sound(m_parms: &MainParms, f_parms_a: &Vec<FrameParms>) -> Vec<f
     let mut out_buf_len = 0;
     for f_parms in f_parms_a {
         out_buf_len += f_parms.duration * m_parms.sample_rate;
-        // SVN: Original - outBufLen += Math.round(fParms.duration * mParms.sampleRate);
     }
     let mut out_buf: Vec<f64> = vec![0.0; out_buf_len];
 
     let mut out_buf_pos = 0;
     for f_parms in f_parms_a {
         let frame_len = f_parms.duration * m_parms.sample_rate;
-        let frame_buf = &mut out_buf[out_buf_pos..(out_buf_pos + frame_len)]; // SVN: not sure about correctly sliced vector
+        let frame_buf = &mut out_buf[out_buf_pos..(out_buf_pos + frame_len)];
         generator.generate_frame(f_parms, frame_buf);
         out_buf_pos += frame_len;
     }
