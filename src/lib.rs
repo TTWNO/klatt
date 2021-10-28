@@ -70,7 +70,7 @@ struct LpFilter1 {
 impl LpFilter1 {
     /// @param sampleRate
     ///    Sample rate in Hz.
-    fn new(sample_rate: usize) -> LpFilter1 {
+    fn new(sample_rate: usize) -> Self {
         LpFilter1 {
             sample_rate: sample_rate,
             a: 0.0,
@@ -210,7 +210,7 @@ impl Resonator {
     /// ```
     /// sample_rate = Sample rate in Hz.
     /// ```
-    fn new(sample_rate: usize) -> Resonator {
+    fn new(sample_rate: usize) -> Self {
         Resonator {
             sample_rate: sample_rate,
             a: 0.0,
@@ -344,7 +344,7 @@ impl AntiResonator {
     /// ```
     ///    sample_rate = Sample rate in Hz.
     /// ```
-    pub fn new(sample_rate: usize) -> AntiResonator {
+    pub fn new(sample_rate: usize) -> Self {
         AntiResonator {
             sample_rate: sample_rate,
 
@@ -797,7 +797,7 @@ pub struct FrameState {
 }
 
 impl FrameState {
-    pub fn new() -> FrameState {
+    pub fn new() -> Self {
         FrameState {
             breathiness_lin: 0.0,
             gain_lin: 0.0,
@@ -830,7 +830,7 @@ pub struct PeriodState {
 }
 
 impl PeriodState {
-    pub fn new() -> PeriodState {
+    pub fn new() -> Self {
         PeriodState {
             f0: 0.0,
             period_length: 0,
@@ -848,7 +848,7 @@ pub struct Generator<'a> {
     /// currently active frame parameters
     f_parms: Option<&'a FrameParms>,
     /// new frame parameters for start of next F0 period
-    new_f_parms: Option<&'a FrameParms>, // FrameParms | undefined, // SVN: | undefined
+    new_f_parms: Option<&'a FrameParms>,
     /// frame variables
     f_state: FrameState,
     /// F0 period state variables
