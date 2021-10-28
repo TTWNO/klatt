@@ -535,6 +535,7 @@ impl LpNoiseSource {
         return self.lp_filter.step(x);
     }
 }
+
 //--- Glottal sources ----------------------------------------------------------
 
 /// Generates a glottal source signal by LP filtering a pulse train.
@@ -648,49 +649,196 @@ impl NaturalGlottalSource {
     }
 }
 
-fn adjust_signal_gain(buf: &mut [f64], target_rms: f64) {
-    let n = buf.len();
-    if n == 0 {
-        return;
+//------------------------------------------------------------------------------
+
+/// Modulates the fundamental frequency (F0).
+///
+/// Sine-wave frequencies of 12.7, 7.1 and 4.7 Hz were chosen so as to ensure
+/// a long period before repetition of the perturbation that is introduced.
+/// A value of flutterLevel = 0.25 results in synthetic vowels with a quite
+/// realistic deviation from constant pitch.
+///
+/// ### params
+/// ```
+///    f0 = Fundamental frequency.
+///    flutter_level = Flutter level between 0 and 1.
+///    time = Relative signal position in seconds.
+/// ```
+/// ### returns
+///    Modulated fundamental frequency.
+fn perform_frequency_modulation(f0: f64, flutter_level: f64, time: f64) -> f64 {
+    println!(
+        "f0: {}, flutter_level: {}, time: {}",
+        f0, flutter_level, time
+    );
+    if flutter_level <= 0.0 {
+        return f0;
     }
-    // let rms = 21f64;
-    let rms = compute_rms(buf);
-    if rms == 0.0 {
-        return;
-    }
-    let r = target_rms / rms;
-    for i in 0..n {
-        buf[i] *= r;
+    let w = 2.0 * consts::PI * time;
+    let a = (12.7 * w).sin() + (7.1 * w).sin() + (4.7 * w).sin();
+
+    let res = f0 * (1.0 + a * flutter_level / 50.0);
+    println!("res: {}", res);
+    res
+}
+
+/// Convert a dB value into a linear value.
+/// dB values of -99 and below or NaN are converted to 0.
+fn db_to_lin(db: f64) -> f64 {
+    if db <= -99.0 || db == std::f64::NAN {
+        return 0.0;
+    } else {
+        return 10f64.powf(db / 20.0);
     }
 }
 
-fn compute_rms(buf: &[f64]) -> f64 {
-    let n = buf.len();
-    let mut acc = 0.0;
-    for i in 0..n {
-        acc += buf[i].powf(2.0);
-    }
-    return (acc / n as f64).sqrt();
+//--- Main logic ---------------------------------------------------------------
+
+#[allow(dead_code)]
+pub enum GlottalSourceType {
+    Impulsive,
+    Natural,
+    Noise,
 }
 
-/// Generates a sound that consists of multiple frames.
-pub fn generate_sound(m_parms: &MainParms, f_parms_a: &Vec<FrameParms>) -> Vec<f64> {
-    let mut generator = Generator::new(m_parms);
-    let mut out_buf_len = 0;
-    for f_parms in f_parms_a {
-        out_buf_len += f_parms.duration * m_parms.sample_rate;
-        // SVN: Original - outBufLen += Math.round(fParms.duration * mParms.sampleRate);
-    }
-    let mut out_buf: Vec<f64> = vec![0.0; out_buf_len];
+pub const MAX_ORAL_FORMANTS: usize = 6;
 
-    let mut out_buf_pos = 0;
-    for f_parms in f_parms_a {
-        let frame_len = f_parms.duration * m_parms.sample_rate;
-        let frame_buf = &mut out_buf[out_buf_pos..(out_buf_pos + frame_len)]; // SVN: not sure about correctly sliced vector
-        generator.generate_frame(f_parms, frame_buf);
-        out_buf_pos += frame_len;
+/// Parameters for the whole sound.
+pub struct MainParms {
+    /// sample rate in Hz
+    pub sample_rate: usize,
+    pub glottal_source_type: GlottalSourceType,
+}
+
+/// Parameters for a sound frame.
+pub struct FrameParms {
+    /// frame duration in seconds
+    pub duration: usize,
+    /// fundamental frequency in Hz
+    pub f0: f64,
+    /// F0 flutter level, 0 .. 1, typically 0.25
+    pub flutter_level: f64,
+    /// relative length of the open phase of the glottis, 0 .. 1, typically 0.7
+    pub open_phase_ratio: f64,
+    /// breathiness in voicing (turbulence) in dB, positive to amplify or negative to attenuate
+    pub breathiness_db: f64,
+    /// spectral tilt for glottal source in dB. Attenuation at 3 kHz in dB. 0 = no tilt.
+    pub tilt_db: f64,
+    /// overall gain (output gain) in dB, positive to amplify, negative to attenuate, NaN for automatic gain control (AGC)
+    pub gain_db: f64,
+    /// RMS level for automatic gain control (AGC), only relevant when gainDb is NaN
+    pub agc_rms_level: f64,
+    /// nasal formant frequency in Hz, or NaN
+    pub nasal_formant_freq: f64,
+    /// nasal formant bandwidth in Hz, or NaN
+    pub nasal_formant_bw: f64,
+    /// oral format frequencies in Hz, or NaN
+    pub oral_formant_freq: Vec<f64>,
+    /// oral format bandwidths in Hz, or NaN
+    pub oral_formant_bw: Vec<f64>,
+
+    // Cascade branch:
+    /// true = cascade branch enabled
+    pub cascade_enabled: bool,
+    /// voicing amplitude for cascade branch in dB, positive to amplify or negative to attenuate
+    pub cascade_voicing_db: f64,
+    /// aspiration (glottis noise) amplitude for cascade branch in dB, positive to amplify or negative to attenuate
+    pub cascade_aspiration_db: f64,
+    /// amplitude modulation factor for aspiration in cascade branch, 0 = no modulation, 1 = maximum modulation
+    pub cascade_aspiration_mod: f64,
+    /// nasal antiformant frequency in Hz, or NaN
+    pub nasal_antiformant_freq: f64,
+    /// nasal antiformant bandwidth in Hz, or NaN
+    pub nasal_antiformant_bw: f64,
+
+    // Parallel branch:
+    /// true = parallel branch enabled
+    pub parallel_enabled: bool,
+    /// voicing amplitude for parallel branch in dB, positive to amplify or negative to attenuate
+    pub parallel_voicing_db: f64,
+    /// aspiration (glottis noise) amplitude for parallel branch in dB, positive to amplify or negative to attenuate
+    pub parallel_aspiration_db: f64,
+    /// amplitude modulation factor for aspiration in parallel branch, 0 = no modulation, 1 = maximum modulation
+    pub parallel_aspiration_mod: f64,
+    /// frication noise level in dB
+    pub frication_db: f64,
+    /// amplitude modulation factor for frication noise in parallel branch, 0 = no modulation, 1 = maximum modulation
+    pub frication_mod: f64,
+    /// parallel bypass level in dB, used to bypass differentiated glottal and frication signals around resonators F2 to F6
+    pub parallel_bypass_db: f64,
+    /// nasal formant level in dB
+    pub nasal_formant_db: f64,
+    /// oral format levels in dB, or NaN
+    pub oral_formant_db: Vec<f64>,
+}
+
+/// Variables of the currently active frame.
+pub struct FrameState {
+    /// linear breathiness level
+    pub breathiness_lin: f64,
+    /// linear overall gain
+    pub gain_lin: f64,
+
+    // Cascade branch:
+    /// linear voicing amplitude for cascade branch
+    pub cascade_voicing_lin: f64,
+    /// linear aspiration amplitude for cascade branch
+    pub cascade_aspiration_lin: f64,
+
+    // Parallel branch:
+    /// linear voicing amplitude for parallel branch
+    parallel_voicing_lin: f64,
+    /// linear aspiration amplitude for parallel branch
+    parallel_aspiration_lin: f64,
+    /// linear frication noise level
+    frication_lin: f64,
+    /// linear parallel bypass level
+    parallel_bypass_lin: f64,
+}
+
+impl FrameState {
+    pub fn new() -> FrameState {
+        FrameState {
+            breathiness_lin: 0.0,
+            gain_lin: 0.0,
+            cascade_voicing_lin: 0.0,
+            cascade_aspiration_lin: 0.0,
+            parallel_voicing_lin: 0.0,
+            parallel_aspiration_lin: 0.0,
+            frication_lin: 0.0,
+            parallel_bypass_lin: 0.0,
+        }
     }
-    out_buf
+}
+
+/// Variables of the currently active F0 period (aka glottal period).
+/// F0 period state
+pub struct PeriodState {
+    /// modulated fundamental frequency for this period, in Hz, or 0
+    pub f0: f64,
+    /// period length in samples
+    period_length: usize,
+    /// open glottis phase length in samples
+    pub open_phase_length: usize,
+
+    // Per sample values:
+    /// current sample position within F0 period
+    pub position_in_period: usize,
+    /// LP filtered noise
+    #[allow(dead_code)]
+    lp_noise: usize,
+}
+
+impl PeriodState {
+    pub fn new() -> PeriodState {
+        PeriodState {
+            f0: 0.0,
+            period_length: 0,
+            open_phase_length: 0,
+            position_in_period: 0,
+            lp_noise: 0,
+        }
+    }
 }
 
 /// Sound generator controller.
@@ -1135,195 +1283,50 @@ fn set_oral_formant_par(
         oral_formant_par.set_mute();
     }
 }
+
+fn adjust_signal_gain(buf: &mut [f64], target_rms: f64) {
+    let n = buf.len();
+    if n == 0 {
+        return;
+    }
+    // let rms = 21f64;
+    let rms = compute_rms(buf);
+    if rms == 0.0 {
+        return;
+    }
+    let r = target_rms / rms;
+    for i in 0..n {
+        buf[i] *= r;
+    }
+}
+
+fn compute_rms(buf: &[f64]) -> f64 {
+    let n = buf.len();
+    let mut acc = 0.0;
+    for i in 0..n {
+        acc += buf[i].powf(2.0);
+    }
+    return (acc / n as f64).sqrt();
+}
+
 //------------------------------------------------------------------------------
 
-/// Modulates the fundamental frequency (F0).
-///
-/// Sine-wave frequencies of 12.7, 7.1 and 4.7 Hz were chosen so as to ensure
-/// a long period before repetition of the perturbation that is introduced.
-/// A value of flutterLevel = 0.25 results in synthetic vowels with a quite
-/// realistic deviation from constant pitch.
-///
-/// ### params
-/// ```
-///    f0 = Fundamental frequency.
-///    flutter_level = Flutter level between 0 and 1.
-///    time = Relative signal position in seconds.
-/// ```
-/// ### returns
-///    Modulated fundamental frequency.
-fn perform_frequency_modulation(f0: f64, flutter_level: f64, time: f64) -> f64 {
-    println!(
-        "f0: {}, flutter_level: {}, time: {}",
-        f0, flutter_level, time
-    );
-    if flutter_level <= 0.0 {
-        return f0;
+/// Generates a sound that consists of multiple frames.
+pub fn generate_sound(m_parms: &MainParms, f_parms_a: &Vec<FrameParms>) -> Vec<f64> {
+    let mut generator = Generator::new(m_parms);
+    let mut out_buf_len = 0;
+    for f_parms in f_parms_a {
+        out_buf_len += f_parms.duration * m_parms.sample_rate;
+        // SVN: Original - outBufLen += Math.round(fParms.duration * mParms.sampleRate);
     }
-    let w = 2.0 * consts::PI * time;
-    let a = (12.7 * w).sin() + (7.1 * w).sin() + (4.7 * w).sin();
+    let mut out_buf: Vec<f64> = vec![0.0; out_buf_len];
 
-    let res = f0 * (1.0 + a * flutter_level / 50.0);
-    println!("res: {}", res);
-    res
-}
-
-/// Convert a dB value into a linear value.
-/// dB values of -99 and below or NaN are converted to 0.
-fn db_to_lin(db: f64) -> f64 {
-    if db <= -99.0 || db == std::f64::NAN {
-        return 0.0;
-    } else {
-        return 10f64.powf(db / 20.0);
+    let mut out_buf_pos = 0;
+    for f_parms in f_parms_a {
+        let frame_len = f_parms.duration * m_parms.sample_rate;
+        let frame_buf = &mut out_buf[out_buf_pos..(out_buf_pos + frame_len)]; // SVN: not sure about correctly sliced vector
+        generator.generate_frame(f_parms, frame_buf);
+        out_buf_pos += frame_len;
     }
-}
-
-//--- Main logic ---------------------------------------------------------------
-
-#[allow(dead_code)]
-pub enum GlottalSourceType {
-    Impulsive,
-    Natural,
-    Noise,
-}
-
-pub const MAX_ORAL_FORMANTS: usize = 6;
-
-/// Parameters for the whole sound.
-pub struct MainParms {
-    /// sample rate in Hz
-    pub sample_rate: usize,
-    pub glottal_source_type: GlottalSourceType,
-}
-
-/// Parameters for a sound frame.
-pub struct FrameParms {
-    /// frame duration in seconds
-    pub duration: usize,
-    /// fundamental frequency in Hz
-    pub f0: f64,
-    /// F0 flutter level, 0 .. 1, typically 0.25
-    pub flutter_level: f64,
-    /// relative length of the open phase of the glottis, 0 .. 1, typically 0.7
-    pub open_phase_ratio: f64,
-    /// breathiness in voicing (turbulence) in dB, positive to amplify or negative to attenuate
-    pub breathiness_db: f64,
-    /// spectral tilt for glottal source in dB. Attenuation at 3 kHz in dB. 0 = no tilt.
-    pub tilt_db: f64,
-    /// overall gain (output gain) in dB, positive to amplify, negative to attenuate, NaN for automatic gain control (AGC)
-    pub gain_db: f64,
-    /// RMS level for automatic gain control (AGC), only relevant when gainDb is NaN
-    pub agc_rms_level: f64,
-    /// nasal formant frequency in Hz, or NaN
-    pub nasal_formant_freq: f64,
-    /// nasal formant bandwidth in Hz, or NaN
-    pub nasal_formant_bw: f64,
-    /// oral format frequencies in Hz, or NaN
-    pub oral_formant_freq: Vec<f64>,
-    /// oral format bandwidths in Hz, or NaN
-    pub oral_formant_bw: Vec<f64>,
-
-    // Cascade branch:
-    /// true = cascade branch enabled
-    pub cascade_enabled: bool,
-    /// voicing amplitude for cascade branch in dB, positive to amplify or negative to attenuate
-    pub cascade_voicing_db: f64,
-    /// aspiration (glottis noise) amplitude for cascade branch in dB, positive to amplify or negative to attenuate
-    pub cascade_aspiration_db: f64,
-    /// amplitude modulation factor for aspiration in cascade branch, 0 = no modulation, 1 = maximum modulation
-    pub cascade_aspiration_mod: f64,
-    /// nasal antiformant frequency in Hz, or NaN
-    pub nasal_antiformant_freq: f64,
-    /// nasal antiformant bandwidth in Hz, or NaN
-    pub nasal_antiformant_bw: f64,
-
-    // Parallel branch:
-    /// true = parallel branch enabled
-    pub parallel_enabled: bool,
-    /// voicing amplitude for parallel branch in dB, positive to amplify or negative to attenuate
-    pub parallel_voicing_db: f64,
-    /// aspiration (glottis noise) amplitude for parallel branch in dB, positive to amplify or negative to attenuate
-    pub parallel_aspiration_db: f64,
-    /// amplitude modulation factor for aspiration in parallel branch, 0 = no modulation, 1 = maximum modulation
-    pub parallel_aspiration_mod: f64,
-    /// frication noise level in dB
-    pub frication_db: f64,
-    /// amplitude modulation factor for frication noise in parallel branch, 0 = no modulation, 1 = maximum modulation
-    pub frication_mod: f64,
-    /// parallel bypass level in dB, used to bypass differentiated glottal and frication signals around resonators F2 to F6
-    pub parallel_bypass_db: f64,
-    /// nasal formant level in dB
-    pub nasal_formant_db: f64,
-    /// oral format levels in dB, or NaN
-    pub oral_formant_db: Vec<f64>,
-}
-
-/// Variables of the currently active frame.
-#[derive(Debug)]
-pub struct FrameState {
-    /// linear breathiness level
-    pub breathiness_lin: f64,
-    /// linear overall gain
-    pub gain_lin: f64,
-
-    // Cascade branch:
-    /// linear voicing amplitude for cascade branch
-    pub cascade_voicing_lin: f64,
-    /// linear aspiration amplitude for cascade branch
-    pub cascade_aspiration_lin: f64,
-
-    // Parallel branch:
-    /// linear voicing amplitude for parallel branch
-    parallel_voicing_lin: f64,
-    /// linear aspiration amplitude for parallel branch
-    parallel_aspiration_lin: f64,
-    /// linear frication noise level
-    frication_lin: f64,
-    /// linear parallel bypass level
-    parallel_bypass_lin: f64,
-}
-
-impl FrameState {
-    pub fn new() -> FrameState {
-        FrameState {
-            breathiness_lin: 0.0,
-            gain_lin: 0.0,
-            cascade_voicing_lin: 0.0,
-            cascade_aspiration_lin: 0.0,
-            parallel_voicing_lin: 0.0,
-            parallel_aspiration_lin: 0.0,
-            frication_lin: 0.0,
-            parallel_bypass_lin: 0.0,
-        }
-    }
-}
-
-/// Variables of the currently active F0 period (aka glottal period).
-/// F0 period state
-pub struct PeriodState {
-    /// modulated fundamental frequency for this period, in Hz, or 0
-    pub f0: f64,
-    /// period length in samples
-    period_length: usize,
-    /// open glottis phase length in samples
-    pub open_phase_length: usize,
-
-    // Per sample values:
-    /// current sample position within F0 period
-    pub position_in_period: usize,
-    /// LP filtered noise
-    #[allow(dead_code)]
-    lp_noise: usize,
-}
-
-impl PeriodState {
-    pub fn new() -> PeriodState {
-        PeriodState {
-            f0: 0.0,
-            period_length: 0,
-            open_phase_length: 0,
-            position_in_period: 0,
-            lp_noise: 0,
-        }
-    }
+    out_buf
 }
