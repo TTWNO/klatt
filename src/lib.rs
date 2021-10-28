@@ -867,12 +867,13 @@ impl<'a> Generator<'a> {
         // let fState = self.fState;
         let p_state = self.p_state.as_ref().unwrap();
         let cascade_voice = voice * self.f_state.cascade_voicing_lin;
-        let current_aspiration_mod = match p_state.position_in_period {
-            _ if p_state.position_in_period >= p_state.period_length / 2 => {
-                f_parms.cascade_aspiration_mod
-            }
-            _ => 0.0,
+
+        let current_aspiration_mod = if p_state.position_in_period >= p_state.period_length / 2 {
+            f_parms.cascade_aspiration_mod
+        } else {
+            0.0
         };
+
         let aspiration = self.aspiration_source_casc.get_next()
             * self.f_state.cascade_aspiration_lin
             * (1.0 - current_aspiration_mod);
@@ -890,12 +891,13 @@ impl<'a> Generator<'a> {
         // let fState = self.fState;
         let p_state = self.p_state.as_ref().unwrap();
         let parallel_voice = voice * self.f_state.parallel_voicing_lin;
-        let current_aspiration_mod = match p_state.position_in_period {
-            _ if p_state.position_in_period >= p_state.period_length / 2 => {
-                f_parms.parallel_aspiration_mod
-            }
-            _ => 0.0,
+
+        let current_aspiration_mod = if p_state.position_in_period >= p_state.period_length / 2 {
+            f_parms.parallel_aspiration_mod
+        } else {
+            0.0
         };
+
         let aspiration = self.aspiration_source_par.get_next()
             * self.f_state.parallel_aspiration_lin
             * (1.0 - current_aspiration_mod);
@@ -908,10 +910,12 @@ impl<'a> Generator<'a> {
         // A better solution would probably be to use real band-pass filters instead of resonators for the formants
         // in the parallel branch. Then this differencing filter would not be necessary to protect the low frequencies
         // of the low formants.
-        let current_frication_mod = match p_state.position_in_period {
-            _ if p_state.position_in_period >= p_state.period_length / 2 => f_parms.frication_mod,
-            _ => 0.0,
+        let current_frication_mod = if p_state.position_in_period >= p_state.period_length / 2 {
+            f_parms.frication_mod
+        } else {
+            0.0
         };
+
         let frication_noise = self.frication_source_par.get_next()
             * self.f_state.frication_lin
             * (1.0 - current_frication_mod);
@@ -920,17 +924,16 @@ impl<'a> Generator<'a> {
         v += self.nasal_formant_par.step(source); // nasal formant is directly applied to source
         v += self.oral_formant_par[0].step(source); // F1 is directly applied to source
         for i in 0..MAX_ORAL_FORMANTS {
-            // F2 to F6
-            let alternating_sign = match i {
-                _ if i % 2 == 0 => 1.0,
-                _ => -1.0,
-            }; // (refer to Klatt (1980) Fig. 13)
+            // F2 to F6 are applied to source difference + frication
+            let alternating_sign = if i % 2 == 0 { 1.0 } else { -1.0 }; // (refer to Klatt (1980) Fig. 13)
             v += alternating_sign * self.oral_formant_par[i].step(source2);
-        } // F2 to F6 are applied to source difference + frication
-        v += self.f_state.parallel_bypass_lin * source2; // bypass is applied to source difference + frication
+        }
+        // bypass is applied to source difference + frication
+        v += self.f_state.parallel_bypass_lin * source2;
         return v;
     }
 
+    /// Starts a new F0 period.
     fn start_new_period(&mut self) {
         if let Some(new_f_parms) = self.new_f_parms {
             // To reduce glitches, new frame parameters are only activated at the start of a new F0 period.
@@ -938,29 +941,25 @@ impl<'a> Generator<'a> {
             self.new_f_parms = None;
             self.start_using_new_frame_parameters();
         }
-
         if let None = self.p_state {
             self.p_state = Some(PeriodState::new());
         }
-
         let mut p_state = self.p_state.as_mut().unwrap(); // SVN: Panic is possible because of unwrap()
         let f_parms = self.f_parms.unwrap(); // SVN: Panic is possible because of unwrap()
         let flutter_time = self.abs_position / self.m_parms.sample_rate + self.flutter_time_offset;
         p_state.f0 =
             perform_frequency_modulation(f_parms.f0, f_parms.flutter_level, flutter_time as f64);
 
-        p_state.period_length = match p_state.f0 {
-            _ if p_state.f0 > 0.0 => {
-                ((self.m_parms.sample_rate as f64) / p_state.f0).round() as usize
-            }
-            _ => 1,
+        p_state.period_length = if p_state.f0 > 0.0 {
+            ((self.m_parms.sample_rate as f64) / p_state.f0).round() as usize
+        } else {
+            1
         };
 
-        p_state.open_phase_length = match p_state.period_length {
-            _ if p_state.period_length > 1 => {
-                ((p_state.period_length as f64) * f_parms.open_phase_ratio).round() as usize
-            }
-            _ => 0,
+        p_state.open_phase_length = if p_state.period_length > 1 {
+            ((p_state.period_length as f64) * f_parms.open_phase_ratio).round() as usize
+        } else {
+            0
         };
 
         p_state.position_in_period = 0;
@@ -1010,9 +1009,7 @@ impl<'a> Generator<'a> {
             }
             GlottalSourceType::Noise => {
                 self.glottal_source = |_g: &mut Generator| get_white_noise();
-            } //    _=> {
-              //       throw new Error("Undefined glottal source type.");
-              //     }
+            }
         }
     }
 
@@ -1058,14 +1055,16 @@ fn set_nasal_antiformant_casc(nasal_antiformant_casc: &mut AntiResonator, f_parm
 }
 
 fn set_oral_formant_casc(oral_formant_casc: &mut Resonator, f_parms: &FrameParms, i: usize) {
-    let f = match i {
-        _ if i < f_parms.oral_formant_freq.len() => f_parms.oral_formant_freq[i],
-        _ => std::f64::NAN,
+    let f = if i < f_parms.oral_formant_freq.len() {
+        f_parms.oral_formant_freq[i]
+    } else {
+        std::f64::NAN
     };
 
-    let bw = match i {
-        _ if i < f_parms.oral_formant_bw.len() => f_parms.oral_formant_bw[i],
-        _ => std::f64::NAN,
+    let bw = if i < f_parms.oral_formant_bw.len() {
+        f_parms.oral_formant_bw[i]
+    } else {
+        std::f64::NAN
     };
 
     if f.is_finite() && bw.is_finite() {
@@ -1094,18 +1093,24 @@ fn set_oral_formant_par(
     i: usize,
 ) {
     let formant = i + 1;
-    let f = match i {
-        _ if i < f_parms.oral_formant_freq.len() => f_parms.oral_formant_freq[i],
-        _ => std::f64::NAN,
+    let f = if i < f_parms.oral_formant_freq.len() {
+        f_parms.oral_formant_freq[i]
+    } else {
+        std::f64::NAN
     };
-    let bw = match i {
-        _ if i < f_parms.oral_formant_bw.len() => f_parms.oral_formant_bw[i],
-        _ => std::f64::NAN,
+
+    let bw = if i < f_parms.oral_formant_bw.len() {
+        f_parms.oral_formant_bw[i]
+    } else {
+        std::f64::NAN
     };
-    let db = match i {
-        _ if i < f_parms.oral_formant_db.len() => f_parms.oral_formant_db[i],
-        _ => std::f64::NAN,
+
+    let db = if i < f_parms.oral_formant_db.len() {
+        f_parms.oral_formant_db[i]
+    } else {
+        std::f64::NAN
     };
+
     let peak_gain = db_to_lin(db);
     // Klatt used the following linear factors to adjust the levels of the parallel formant
     // resonators so that they have a similar effect as the cascade versions:
@@ -1117,10 +1122,14 @@ fn set_oral_formant_par(
         oral_formant_par.set(f, bw, None);
         let w = 2.0 * consts::PI * f / (m_parms.sample_rate as f64);
         let diff_gain = (2.0 - 2.0 * w.cos()).sqrt(); // gain of differencing filter
-        let filter_gain = match formant {
-            _ if formant >= 2 => peak_gain / diff_gain,
-            _ => peak_gain,
-        }; // compensate differencing filter for F2 to F6
+
+        // compensate differencing filter for F2 to F6
+        let filter_gain = if formant >= 2 {
+            peak_gain / diff_gain
+        } else {
+            peak_gain
+        };
+
         oral_formant_par.adjust_peak_gain(filter_gain);
     } else {
         oral_formant_par.set_mute();
