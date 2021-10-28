@@ -84,5 +84,11 @@ fn run_generate_sound() {
 
     let sound = lib::generate_sound(&m_parms, &f_parms_a);
 
-    println!("sound: {:#?}", &sound[0..10]);
+    match sound {
+        Ok(sound) => println!("Sound: {:#?}", &sound[0..10]),
+        Err(error) => {
+            println!("Error: {}", error);
+            std::process::exit(1);
+        }
+    }
 }

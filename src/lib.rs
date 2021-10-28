@@ -89,11 +89,18 @@ impl LpFilter1 {
     ///    extra_gain = Extra gain factor. This is the resulting DC gain.
     /// ```
     /// The resulting gain at `f` will be `g * extraGain`.
-    pub fn set(&mut self, f: f64, g: f64, extra_gain: Option<f64>) {
+    pub fn set(&mut self, f: f64, g: f64, extra_gain: Option<f64>) -> Result<(), &'static str> {
         let extra_gain = extra_gain.unwrap_or(1.0);
-        // SVN: skipped error handling
-        //    if f <= 0 || f >= self.sampleRate / 2 || g <= 0 || g >= 1 || !isFinite(f) || !isFinite(g) || !isFinite(extraGain) {
-        //       throw new Error("Invalid filter parameters."); }
+        if f <= 0.0
+            || f >= self.sample_rate as f64 / 2.0
+            || g <= 0.0
+            || g >= 1.0
+            || f.is_infinite()
+            || g.is_infinite()
+            || extra_gain.is_infinite()
+        {
+            return Err("Invalid filter parameters.");
+        }
 
         let w = 2.0 * consts::PI * (f as f64) / (self.sample_rate as f64);
         let q = (1.0 - g.powf(2.0) * w.cos()) / (1.0 - g.powf(2.0));
@@ -101,6 +108,7 @@ impl LpFilter1 {
         self.a = (1.0 - self.b) * extra_gain;
         self.passthrough = false;
         self.muted = false;
+        Ok(())
     }
 
     pub fn set_passthrough(&mut self) {
@@ -230,11 +238,18 @@ impl Resonator {
     /// bw = Bandwidth of resonator in Hz.
     /// dc_gain = DC gain level.
     /// ```
-    pub fn set(&mut self, f: f64, bw: f64, dc_gain: Option<f64>) {
+    pub fn set(&mut self, f: f64, bw: f64, dc_gain: Option<f64>) -> Result<(), &'static str> {
         let dc_gain = dc_gain.unwrap_or(1.0);
-        // SVN: Paramters check
-        //    if (f < 0 || f >= this.sampleRate / 2 || bw <= 0 || dcGain <= 0 || !isFinite(f) || !isFinite(bw) || !isFinite(dcGain)) {
-        //       throw new Error("Invalid resonator parameters."); }
+        if f < 0.0
+            || f >= self.sample_rate as f64 / 2.0
+            || bw <= 0.0
+            || dc_gain <= 0.0
+            || f.is_infinite()
+            || bw.is_infinite()
+            || dc_gain.is_infinite()
+        {
+            return Err("Invalid resonator parameters.");
+        }
         self.r = (-consts::PI * bw / (self.sample_rate as f64)).exp();
         let w = 2.0 * consts::PI * f / (self.sample_rate as f64);
         self.c = -self.r.powf(2.0);
@@ -242,6 +257,7 @@ impl Resonator {
         self.a = (1.0 - self.b - self.c) * dc_gain;
         self.passthrough = false;
         self.muted = false;
+        Ok(())
     }
 
     pub fn set_passthrough(&mut self) {
@@ -262,12 +278,12 @@ impl Resonator {
         self.a = new_a;
     }
 
-    pub fn adjust_peak_gain(&mut self, peak_gain: f64) {
-        // SVN: Parameters check
-        //    if peakGain <= 0.0 || !peakGain.is_finite() {
-        //       throw new Error("Invalid resonator peak gain.");
-        //     }
+    pub fn adjust_peak_gain(&mut self, peak_gain: f64) -> Result<(), &'static str> {
+        if peak_gain <= 0.0 || peak_gain.is_infinite() {
+            return Err("Invalid resonator peak gain.");
+        }
         self.a = peak_gain * (1.0 - self.r);
+        Ok(())
     }
 
     /// Returns the polynomial coefficients of the filter transfer function in the z-plane.
@@ -364,10 +380,15 @@ impl AntiResonator {
     ///    f = Frequency of anti-resonator in Hz.
     ///    bw = bandwidth of anti-resonator in Hz.
     /// ```
-    pub fn set(&mut self, f: f64, bw: f64) {
-        // SVN: Skip parameter check
-        //    if (f <= 0 || f >= this.sampleRate / 2 || bw <= 0 || !isFinite(f) || !isFinite(bw)) {
-        //       throw new Error("Invalid anti-resonator parameters."); }
+    pub fn set(&mut self, f: f64, bw: f64) -> Result<(), &'static str> {
+        if f <= 0.0
+            || f >= self.sample_rate as f64 / 2.0
+            || bw <= 0.0
+            || f.is_infinite()
+            || bw.is_infinite()
+        {
+            return Err("Invalid anti-resonator parameters.");
+        }
         let r = (-consts::PI * bw / (self.sample_rate as f64)).exp();
         let w = 2.0 * consts::PI * f / (self.sample_rate as f64);
         let c0 = -(r * r);
@@ -377,13 +398,14 @@ impl AntiResonator {
             self.a = 0.0;
             self.b = 0.0;
             self.c = 0.0;
-            return;
+            return Ok(());
         }
         self.a = 1.0 / a0;
         self.b = -b0 / a0;
         self.c = -c0 / a0;
         self.passthrough = false;
         self.muted = false;
+        Ok(())
     }
 
     pub fn set_passthrough(&mut self) {
@@ -507,7 +529,7 @@ struct LpNoiseSource {
     lp_filter: LpFilter1,
 }
 impl LpNoiseSource {
-    pub fn new(sample_rate: usize) -> Self {
+    pub fn new(sample_rate: usize) -> Result<Self, &'static str> {
         // The original program logic used a first order LP filter with a filter coefficient
         // of b=0.75 and a sample rate of 10 kHz.
         let old_b = 0.75;
@@ -525,8 +547,8 @@ impl LpNoiseSource {
         let mut lp_noise_source = LpNoiseSource {
             lp_filter: LpFilter1::new(sample_rate),
         };
-        lp_noise_source.lp_filter.set(f, g, Some(extra_gain));
-        lp_noise_source
+        lp_noise_source.lp_filter.set(f, g, Some(extra_gain))?;
+        Ok(lp_noise_source)
     }
 
     /// Returns an LP-filtered random number.
@@ -558,18 +580,20 @@ impl ImpulsiveGlottalSource {
     /// ```
     ///    open_phase_length = Duration of the open glottis phase of the F0 period, in samples.
     /// ```
-    pub fn start_period(&mut self, open_phase_length: usize) {
+    pub fn start_period(&mut self, open_phase_length: usize) -> Result<(), &'static str> {
         if open_phase_length == 0 {
             self.resonator = None;
-            return;
+            return Ok(());
         }
         if self.resonator.is_none() {
             self.resonator = Some(Resonator::new(self.sample_rate));
         }
         let bw = (self.sample_rate as f64) / (open_phase_length as f64);
-        self.resonator.as_mut().unwrap().set(0.0, bw, None);
+        self.resonator.as_mut().unwrap().set(0.0, bw, None)?;
         self.resonator.as_mut().unwrap().adjust_impulse_gain(1.0);
         self.position_in_period = 0;
+
+        Ok(())
     }
 
     pub fn get_next(&mut self) -> f64 {
@@ -611,7 +635,7 @@ struct NaturalGlottalSource {
 }
 
 impl NaturalGlottalSource {
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self, &'static str> {
         let mut natural_glottal_source = NaturalGlottalSource {
             x: 0.0,
             a: 0.0,
@@ -620,21 +644,22 @@ impl NaturalGlottalSource {
             position_in_period: 0,
         };
 
-        natural_glottal_source.start_period(0);
-        natural_glottal_source
+        natural_glottal_source.start_period(0)?;
+        Ok(natural_glottal_source)
     }
 
     /// ### params
     /// ```
     ///    open_phase_length = Duration of the open glottis phase of the F0 period, in samples.
     /// ```
-    pub fn start_period(&mut self, open_phase_length: usize) {
+    pub fn start_period(&mut self, open_phase_length: usize) -> Result<(), &'static str> {
         self.open_phase_length = open_phase_length;
         self.x = 0.0;
         let amplification = 5.0;
         self.b = -(amplification / open_phase_length as f64).powf(2.0);
         self.a = -self.b * open_phase_length as f64 / 3.0;
         self.position_in_period = 0;
+        Ok(())
     }
 
     pub fn get_next(&mut self) -> f64 {
@@ -667,19 +692,13 @@ impl NaturalGlottalSource {
 /// ### returns
 ///    Modulated fundamental frequency.
 fn perform_frequency_modulation(f0: f64, flutter_level: f64, time: f64) -> f64 {
-    println!(
-        "f0: {}, flutter_level: {}, time: {}",
-        f0, flutter_level, time
-    );
     if flutter_level <= 0.0 {
         return f0;
     }
     let w = 2.0 * consts::PI * time;
     let a = (12.7 * w).sin() + (7.1 * w).sin() + (4.7 * w).sin();
 
-    let res = f0 * (1.0 + a * flutter_level / 50.0);
-    println!("res: {}", res);
-    res
+    f0 * (1.0 + a * flutter_level / 50.0)
 }
 
 /// Convert a dB value into a linear value.
@@ -895,7 +914,7 @@ pub struct Generator<'a> {
 }
 
 impl<'a> Generator<'a> {
-    pub fn new(m_parms: &MainParms) -> Generator {
+    pub fn new(m_parms: &MainParms) -> Result<Generator, &'static str> {
         // let mut rng = rand::thread_rng();
 
         let mut generator = Generator {
@@ -915,9 +934,9 @@ impl<'a> Generator<'a> {
             glottal_source: |_g: &mut Generator| 0.0,
 
             // Create noise sources:
-            aspiration_source_casc: LpNoiseSource::new(m_parms.sample_rate),
-            aspiration_source_par: LpNoiseSource::new(m_parms.sample_rate),
-            frication_source_par: LpNoiseSource::new(m_parms.sample_rate),
+            aspiration_source_casc: LpNoiseSource::new(m_parms.sample_rate)?,
+            aspiration_source_par: LpNoiseSource::new(m_parms.sample_rate)?,
+            frication_source_par: LpNoiseSource::new(m_parms.sample_rate)?,
 
             // Initialize cascade branch variables:
             nasal_formant_casc: Resonator::new(m_parms.sample_rate),
@@ -930,11 +949,11 @@ impl<'a> Generator<'a> {
             differencing_filter_par: DifferencingFilter::new(),
         };
 
-        generator.init_glottal_source();
-
         generator
             .output_lp_filter
-            .set(0.0, (m_parms.sample_rate as f64) / 2.0, None);
+            .set(0.0, (m_parms.sample_rate as f64) / 2.0, None)?;
+
+        generator.init_glottal_source()?;
 
         for _ in 0..MAX_ORAL_FORMANTS {
             generator
@@ -945,13 +964,20 @@ impl<'a> Generator<'a> {
                 .push(Resonator::new(m_parms.sample_rate));
         }
 
-        generator
+        Ok(generator)
     }
 
     /// Generates a frame of the sound.
     /// The length of the frame is specified by `outBuf.length` and `fParms.duration` is ignored.
-    pub fn generate_frame(&mut self, f_parms: &'a FrameParms, out_buf: &mut [f64]) {
-        // SVN: Skipped parameters check
+    pub fn generate_frame(
+        &mut self,
+        f_parms: &'a FrameParms,
+        out_buf: &mut [f64],
+    ) -> Result<(), &'static str> {
+        // SVN: Reference check is required. See https://docs.rs/same/0.1.0/same/trait.Same.html
+        // if f_parms == self.f_parms.unwrap() {
+        //     return Err("FrameParms structure must not be re-used.");
+        // }
         // if (fParms == this.fParms) {
         //    throw new Error("FrameParms structure must not be re-used."); }
 
@@ -960,11 +986,11 @@ impl<'a> Generator<'a> {
             match &self.p_state {
                 Some(p_state) => {
                     if p_state.position_in_period >= p_state.period_length {
-                        self.start_new_period()
+                        self.start_new_period()?
                     }
                 }
-                None => self.start_new_period(),
-            }
+                None => self.start_new_period()?,
+            };
 
             out_buf[out_pos] = self.compute_next_output_signal_sample();
             self.p_state.as_mut().unwrap().position_in_period += 1;
@@ -975,6 +1001,8 @@ impl<'a> Generator<'a> {
         if f_parms.gain_db.is_nan() {
             adjust_signal_gain(out_buf, f_parms.agc_rms_level);
         }
+
+        Ok(())
     }
 
     fn compute_next_output_signal_sample(&mut self) -> f64 {
@@ -1082,12 +1110,12 @@ impl<'a> Generator<'a> {
     }
 
     /// Starts a new F0 period.
-    fn start_new_period(&mut self) {
+    fn start_new_period(&mut self) -> Result<(), &'static str> {
         if let Some(new_f_parms) = self.new_f_parms {
             // To reduce glitches, new frame parameters are only activated at the start of a new F0 period.
             self.f_parms = Some(new_f_parms);
             self.new_f_parms = None;
-            self.start_using_new_frame_parameters();
+            self.start_using_new_frame_parameters()?;
         }
         if let None = self.p_state {
             self.p_state = Some(PeriodState::new());
@@ -1111,24 +1139,25 @@ impl<'a> Generator<'a> {
         };
 
         p_state.position_in_period = 0;
-        self.start_glottal_source_period();
+        self.start_glottal_source_period()?;
+        Ok(())
     }
 
-    fn start_using_new_frame_parameters(&mut self) {
+    fn start_using_new_frame_parameters(&mut self) -> Result<(), &'static str> {
         let m_parms = self.m_parms;
         let f_parms = self.f_parms.unwrap(); // SVN: Option unwarap
         self.f_state.breathiness_lin = db_to_lin(f_parms.breathiness_db);
         self.f_state.gain_lin = db_to_lin(f_parms.gain_db);
         // fState.gainLin = db_to_lin(fParms.gain_db || 0); // SVN: Ommited chec for defined value
-        set_tilt_filter(&mut self.tilt_filter, f_parms.tilt_db);
+        set_tilt_filter(&mut self.tilt_filter, f_parms.tilt_db)?;
 
         // Adjust cascade branch:
         self.f_state.cascade_voicing_lin = db_to_lin(f_parms.cascade_voicing_db);
         self.f_state.cascade_aspiration_lin = db_to_lin(f_parms.cascade_aspiration_db);
-        set_nasal_formant_casc(&mut self.nasal_formant_casc, f_parms);
-        set_nasal_antiformant_casc(&mut self.nasal_antiformant_casc, f_parms);
+        set_nasal_formant_casc(&mut self.nasal_formant_casc, f_parms)?;
+        set_nasal_antiformant_casc(&mut self.nasal_antiformant_casc, f_parms)?;
         for i in 0..MAX_ORAL_FORMANTS {
-            set_oral_formant_casc(&mut self.oral_formant_casc[i], f_parms, i);
+            set_oral_formant_casc(&mut self.oral_formant_casc[i], f_parms, i)?;
         }
 
         // Adjust parallel branch:
@@ -1136,13 +1165,14 @@ impl<'a> Generator<'a> {
         self.f_state.parallel_aspiration_lin = db_to_lin(f_parms.parallel_aspiration_db);
         self.f_state.frication_lin = db_to_lin(f_parms.frication_db);
         self.f_state.parallel_bypass_lin = db_to_lin(f_parms.parallel_bypass_db);
-        set_nasal_formant_par(&mut self.nasal_formant_par, f_parms);
+        set_nasal_formant_par(&mut self.nasal_formant_par, f_parms)?;
         for i in 0..MAX_ORAL_FORMANTS {
-            set_oral_formant_par(&mut self.oral_formant_par[i], m_parms, f_parms, i);
+            set_oral_formant_par(&mut self.oral_formant_par[i], m_parms, f_parms, i)?;
         }
+        Ok(())
     }
 
-    fn init_glottal_source(&mut self) {
+    fn init_glottal_source(&mut self) -> Result<(), &'static str> {
         match self.m_parms.glottal_source_type {
             GlottalSourceType::Impulsive => {
                 self.impulsive_g_source =
@@ -1151,7 +1181,7 @@ impl<'a> Generator<'a> {
                     |g: &mut Generator| g.impulsive_g_source.as_mut().unwrap().get_next();
             }
             GlottalSourceType::Natural => {
-                self.natural_g_source = Some(NaturalGlottalSource::new());
+                self.natural_g_source = Some(NaturalGlottalSource::new()?);
                 self.glottal_source =
                     |g: &mut Generator| g.natural_g_source.as_mut().unwrap().get_next();
             }
@@ -1159,9 +1189,10 @@ impl<'a> Generator<'a> {
                 self.glottal_source = |_g: &mut Generator| get_white_noise();
             }
         }
+        Ok(())
     }
 
-    fn start_glottal_source_period(&mut self) {
+    fn start_glottal_source_period(&mut self) -> Result<(), &'static str> {
         match self.m_parms.glottal_source_type {
             GlottalSourceType::Impulsive => self
                 .impulsive_g_source
@@ -1173,36 +1204,49 @@ impl<'a> Generator<'a> {
                 .as_mut()
                 .unwrap()
                 .start_period(self.p_state.as_ref().unwrap().open_phase_length),
-            _ => {}
+            _ => Ok(()),
         }
     }
 }
 
-fn set_tilt_filter(tilt_filter: &mut LpFilter1, tilt_db: f64) {
+fn set_tilt_filter(tilt_filter: &mut LpFilter1, tilt_db: f64) -> Result<(), &'static str> {
     if tilt_db == 0.0 {
         tilt_filter.set_passthrough();
     } else {
-        tilt_filter.set(3000.0, db_to_lin(-tilt_db), None);
+        tilt_filter.set(3000.0, db_to_lin(-tilt_db), None)?;
     }
+    Ok(())
 }
 
-fn set_nasal_formant_casc(nasal_formant_casc: &mut Resonator, f_parms: &FrameParms) {
-    if f_parms.nasal_formant_freq >= 0.0 && f_parms.nasal_formant_bw >= 0.0 {
-        nasal_formant_casc.set(f_parms.nasal_formant_freq, f_parms.nasal_formant_bw, None);
+fn set_nasal_formant_casc(
+    nasal_formant_casc: &mut Resonator,
+    f_parms: &FrameParms,
+) -> Result<(), &'static str> {
+    if f_parms.nasal_formant_freq != 0.0 && f_parms.nasal_formant_bw != 0.0 {
+        nasal_formant_casc.set(f_parms.nasal_formant_freq, f_parms.nasal_formant_bw, None)?;
     } else {
         nasal_formant_casc.set_passthrough();
     }
+    Ok(())
 }
 
-fn set_nasal_antiformant_casc(nasal_antiformant_casc: &mut AntiResonator, f_parms: &FrameParms) {
-    if f_parms.nasal_antiformant_freq.is_finite() && f_parms.nasal_antiformant_bw.is_finite() {
-        nasal_antiformant_casc.set(f_parms.nasal_antiformant_freq, f_parms.nasal_antiformant_bw);
+fn set_nasal_antiformant_casc(
+    nasal_antiformant_casc: &mut AntiResonator,
+    f_parms: &FrameParms,
+) -> Result<(), &'static str> {
+    if f_parms.nasal_antiformant_freq != 0.0 && f_parms.nasal_antiformant_bw != 0.0 {
+        nasal_antiformant_casc.set(f_parms.nasal_antiformant_freq, f_parms.nasal_antiformant_bw)?;
     } else {
         nasal_antiformant_casc.set_passthrough();
     }
+    Ok(())
 }
 
-fn set_oral_formant_casc(oral_formant_casc: &mut Resonator, f_parms: &FrameParms, i: usize) {
+fn set_oral_formant_casc(
+    oral_formant_casc: &mut Resonator,
+    f_parms: &FrameParms,
+    i: usize,
+) -> Result<(), &'static str> {
     let f = if i < f_parms.oral_formant_freq.len() {
         f_parms.oral_formant_freq[i]
     } else {
@@ -1216,22 +1260,27 @@ fn set_oral_formant_casc(oral_formant_casc: &mut Resonator, f_parms: &FrameParms
     };
 
     if f.is_finite() && bw.is_finite() {
-        oral_formant_casc.set(f, bw, None);
+        oral_formant_casc.set(f, bw, None)?;
     } else {
         oral_formant_casc.set_passthrough();
     }
+    Ok(())
 }
 
-fn set_nasal_formant_par(nasal_formant_par: &mut Resonator, f_parms: &FrameParms) {
-    if f_parms.nasal_formant_freq.is_finite()
-        && f_parms.nasal_formant_bw.is_finite()
-        && db_to_lin(f_parms.nasal_formant_db).is_finite()
+fn set_nasal_formant_par(
+    nasal_formant_par: &mut Resonator,
+    f_parms: &FrameParms,
+) -> Result<(), &'static str> {
+    if f_parms.nasal_formant_freq != 0.0
+        && f_parms.nasal_formant_bw != 0.0
+        && db_to_lin(f_parms.nasal_formant_db) != 0.0
     {
-        nasal_formant_par.set(f_parms.nasal_formant_freq, f_parms.nasal_formant_bw, None);
-        nasal_formant_par.adjust_peak_gain(db_to_lin(f_parms.nasal_formant_db));
+        nasal_formant_par.set(f_parms.nasal_formant_freq, f_parms.nasal_formant_bw, None)?;
+        nasal_formant_par.adjust_peak_gain(db_to_lin(f_parms.nasal_formant_db))?;
     } else {
         nasal_formant_par.set_mute();
     }
+    Ok(())
 }
 
 fn set_oral_formant_par(
@@ -1239,7 +1288,7 @@ fn set_oral_formant_par(
     m_parms: &MainParms,
     f_parms: &FrameParms,
     i: usize,
-) {
+) -> Result<(), &'static str> {
     let formant = i + 1;
     let f = if i < f_parms.oral_formant_freq.len() {
         f_parms.oral_formant_freq[i]
@@ -1267,7 +1316,7 @@ fn set_oral_formant_par(
     // match the specified formant levels. Instead, we use the specified dB value to set the peak gain
     // instead of taking it as the DC gain.
     if f.is_finite() && bw.is_finite() && peak_gain.is_finite() {
-        oral_formant_par.set(f, bw, None);
+        oral_formant_par.set(f, bw, None)?;
         let w = 2.0 * consts::PI * f / (m_parms.sample_rate as f64);
         let diff_gain = (2.0 - 2.0 * w.cos()).sqrt(); // gain of differencing filter
 
@@ -1278,10 +1327,11 @@ fn set_oral_formant_par(
             peak_gain
         };
 
-        oral_formant_par.adjust_peak_gain(filter_gain);
+        oral_formant_par.adjust_peak_gain(filter_gain)?;
     } else {
         oral_formant_par.set_mute();
     }
+    Ok(())
 }
 
 fn adjust_signal_gain(buf: &mut [f64], target_rms: f64) {
@@ -1312,8 +1362,11 @@ fn compute_rms(buf: &[f64]) -> f64 {
 //------------------------------------------------------------------------------
 
 /// Generates a sound that consists of multiple frames.
-pub fn generate_sound(m_parms: &MainParms, f_parms_a: &Vec<FrameParms>) -> Vec<f64> {
-    let mut generator = Generator::new(m_parms);
+pub fn generate_sound(
+    m_parms: &MainParms,
+    f_parms_a: &Vec<FrameParms>,
+) -> Result<Vec<f64>, &'static str> {
+    let mut generator = Generator::new(m_parms)?;
     let mut out_buf_len = 0;
     for f_parms in f_parms_a {
         out_buf_len += f_parms.duration * m_parms.sample_rate;
@@ -1324,8 +1377,8 @@ pub fn generate_sound(m_parms: &MainParms, f_parms_a: &Vec<FrameParms>) -> Vec<f
     for f_parms in f_parms_a {
         let frame_len = f_parms.duration * m_parms.sample_rate;
         let frame_buf = &mut out_buf[out_buf_pos..(out_buf_pos + frame_len)];
-        generator.generate_frame(f_parms, frame_buf);
+        generator.generate_frame(f_parms, frame_buf)?;
         out_buf_pos += frame_len;
     }
-    out_buf
+    Ok(out_buf)
 }
