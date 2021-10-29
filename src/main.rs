@@ -4,7 +4,7 @@ mod poly_real;
 use klatt::{FrameParms, GlottalSourceType, MainParms};
 
 fn main() {
-    // run_generate_sound();
+    run_generate_sound();
     run_generate_vocal();
 }
 
@@ -35,7 +35,7 @@ fn get_f_params() -> FrameParms {
         cascade_aspiration_mod: 0.5,
         nasal_antiformant_freq: 1.0,
         nasal_antiformant_bw: 0.0,
-        parallel_enabled: false,
+        parallel_enabled: true,
         parallel_voicing_db: 0.0,
         parallel_aspiration_db: -25.0,
         parallel_aspiration_mod: 0.5,

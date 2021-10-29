@@ -654,7 +654,7 @@ impl NaturalGlottalSource {
         self.open_phase_length = open_phase_length;
         self.x = 0.0;
         let amplification = 5.0;
-        self.b = -(amplification / open_phase_length as f64).powf(2.0);
+        self.b = -amplification / (open_phase_length as f64).powf(2.0);
         self.a = -self.b * open_phase_length as f64 / 3.0;
         self.position_in_period = 0;
         Ok(())
@@ -1097,7 +1097,7 @@ impl<'a> Generator<'a> {
         let mut v = 0.0;
         v += self.nasal_formant_par.step(source); // nasal formant is directly applied to source
         v += self.oral_formant_par[0].step(source); // F1 is directly applied to source
-        for i in 0..MAX_ORAL_FORMANTS {
+        for i in 1..MAX_ORAL_FORMANTS {
             // F2 to F6 are applied to source difference + frication
             let alternating_sign = if i % 2 == 0 { 1.0 } else { -1.0 }; // (refer to Klatt (1980) Fig. 13)
             v += alternating_sign * self.oral_formant_par[i].step(source2);
@@ -1463,7 +1463,8 @@ fn get_parallel_branch_transfer_function_coefficients(
     let differencing_filter_par = DifferencingFilter::new();
     let differencing_filter_trans = differencing_filter_par.get_transfer_function_coefficients();
     let source2 = poly_real::multiply_fractions(&source, &differencing_filter_trans, Some(EPS))?;
-    let mut v: Vec<Vec<f64>> = vec![vec![parallel_voicing_lin], vec![1.0]];
+    //
+    let mut v: Vec<Vec<f64>> = vec![vec![0.0], vec![1.0]];
     //
     let mut nasal_formant_par = Resonator::new(m_parms.sample_rate);
     set_nasal_formant_par(&mut nasal_formant_par, f_parms)?;
