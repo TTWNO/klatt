@@ -3,7 +3,7 @@
 ## Launch
 
 1. Open the project in VS Code
-1. Hit `F5` and see resuls in the debug console
+1.Hit `F5` and see result in the terminal
 
 All the input parameters for the code are in `./src/app_params.rs`
 
