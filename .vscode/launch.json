@@ -7,11 +7,11 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "Debug executable 'klatt_syn_rs'",
+      "name": "Debug executable 'klatt-syn-rs'",
       "cargo": {
-        "args": ["build", "--bin=klatt_syn_rs", "--package=klatt_syn_rs"],
+        "args": ["build", "--bin=klatt-syn-rs", "--package=klatt-syn-rs"],
         "filter": {
-          "name": "klatt_syn_rs",
+          "name": "klatt-syn-rs",
           "kind": "bin"
         }
       },
