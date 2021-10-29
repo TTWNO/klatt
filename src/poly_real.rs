@@ -69,7 +69,7 @@ fn divide(a1r: &[f64], a2r: &[f64], eps: Option<f64>) -> Result<Vec<Vec<f64>>, &
         if a2[0] == 1.0 {
             return Ok(vec![a1.to_vec(), vec![0.0]]);
         }
-        return Ok(vec![divByReal(&a1, a2[0]), vec![0.0]]);
+        return Ok(vec![div_by_real(&a1, a2[0]), vec![0.0]]);
     }
     let n1 = a1.len() - 1;
     let n2 = a2.len() - 1;
@@ -162,7 +162,7 @@ fn make_monic(a: &mut [f64]) -> Result<(), &'static str> {
     Ok(())
 }
 
-fn divByReal(a: &[f64], b: f64) -> Vec<f64> {
+fn div_by_real(a: &[f64], b: f64) -> Vec<f64> {
     let mut a2 = vec![0.0; a.len()];
     for i in 0..a.len() {
         a2[i] = a[i] / b;

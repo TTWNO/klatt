@@ -1,8 +1,7 @@
 mod app_params;
+#[allow(dead_code)]
 mod klatt;
 mod poly_real;
-
-use klatt::{FrameParms, GlottalSourceType, MainParms};
 
 fn run_generate_sound() {
     let sound = klatt::generate_sound(&app_params::m_parms(), &vec![app_params::f_params()]);
