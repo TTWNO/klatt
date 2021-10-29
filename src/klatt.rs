@@ -1,10 +1,6 @@
 use crate::poly_real;
-
-// #[path = "lib_tests.rs"]
-// mod tests;
-
+use std::f64::consts::PI;
 // use rand::prelude::*;
-use std::f64::consts;
 
 //--- Filters ------------------------------------------------------------------
 
@@ -68,7 +64,6 @@ struct LpFilter1 {
     passthrough: bool,
     muted: bool,
 }
-
 impl LpFilter1 {
     /// @param sampleRate
     ///    Sample rate in Hz.
@@ -104,7 +99,7 @@ impl LpFilter1 {
             return Err("Invalid filter parameters.");
         }
 
-        let w = 2.0 * consts::PI * (f as f64) / (self.sample_rate as f64);
+        let w = 2.0 * PI * (f as f64) / (self.sample_rate as f64);
         let q = (1.0 - g.powf(2.0) * w.cos()) / (1.0 - g.powf(2.0));
         self.b = q - (q.powf(2.0) - 1.0).sqrt();
         self.a = (1.0 - self.b) * extra_gain;
@@ -251,8 +246,8 @@ impl Resonator {
         {
             return Err("Invalid resonator parameters.");
         }
-        self.r = (-consts::PI * bw / (self.sample_rate as f64)).exp();
-        let w = 2.0 * consts::PI * f / (self.sample_rate as f64);
+        self.r = (-PI * bw / (self.sample_rate as f64)).exp();
+        let w = 2.0 * PI * f / (self.sample_rate as f64);
         self.c = -self.r.powf(2.0);
         self.b = 2.0 * self.r * w.cos();
         self.a = (1.0 - self.b - self.c) * dc_gain;
@@ -389,8 +384,8 @@ impl AntiResonator {
         {
             return Err("Invalid anti-resonator parameters.");
         }
-        let r = (-consts::PI * bw / (self.sample_rate as f64)).exp();
-        let w = 2.0 * consts::PI * f / (self.sample_rate as f64);
+        let r = (-PI * bw / (self.sample_rate as f64)).exp();
+        let w = 2.0 * PI * f / (self.sample_rate as f64);
         let c0 = -(r * r);
         let b0 = 2.0 * r * w.cos();
         let a0 = 1.0 - b0 - c0;
@@ -535,8 +530,7 @@ impl LpNoiseSource {
         // Compute the gain at 1000 Hz with a sample rate of 10 kHz and a DC gain of 1.
         let f = 1000.0;
         let g = (1.0 - old_b)
-            / (1.0 - 2.0 * old_b * (2.0 * consts::PI * f / old_ample_rate).cos() + old_b.powf(2.0))
-                .sqrt();
+            / (1.0 - 2.0 * old_b * (2.0 * PI * f / old_ample_rate).cos() + old_b.powf(2.0)).sqrt();
 
         // compensate amplitude for output range -1 .. +1
         // Create an LP filter with the same characteristics but with our sampling rate.
@@ -631,7 +625,6 @@ struct NaturalGlottalSource {
     /// current sample position within F0 period
     position_in_period: usize,
 }
-
 impl NaturalGlottalSource {
     pub fn new() -> Result<Self, &'static str> {
         let mut natural_glottal_source = NaturalGlottalSource {
@@ -693,7 +686,7 @@ fn perform_frequency_modulation(f0: f64, flutter_level: f64, time: f64) -> f64 {
     if flutter_level <= 0.0 {
         return f0;
     }
-    let w = 2.0 * consts::PI * time;
+    let w = 2.0 * PI * time;
     let a = (12.7 * w).sin() + (7.1 * w).sin() + (4.7 * w).sin();
 
     f0 * (1.0 + a * flutter_level / 50.0)
@@ -711,7 +704,6 @@ fn db_to_lin(db: f64) -> f64 {
 
 //--- Main logic ---------------------------------------------------------------
 
-#[allow(dead_code)]
 pub enum GlottalSourceType {
     Impulsive,
     Natural,
@@ -790,7 +782,7 @@ pub struct FrameParms {
 }
 
 /// Variables of the currently active frame.
-pub struct FrameState {
+struct FrameState {
     /// linear breathiness level
     pub breathiness_lin: f64,
     /// linear overall gain
@@ -812,7 +804,6 @@ pub struct FrameState {
     /// linear parallel bypass level
     parallel_bypass_lin: f64,
 }
-
 impl FrameState {
     pub fn new() -> Self {
         FrameState {
@@ -830,7 +821,7 @@ impl FrameState {
 
 /// Variables of the currently active F0 period (aka glottal period).
 /// F0 period state
-pub struct PeriodState {
+struct PeriodState {
     /// modulated fundamental frequency for this period, in Hz, or 0
     pub f0: f64,
     /// period length in samples
@@ -845,7 +836,6 @@ pub struct PeriodState {
     #[allow(dead_code)]
     lp_noise: usize,
 }
-
 impl PeriodState {
     pub fn new() -> Self {
         PeriodState {
@@ -910,7 +900,6 @@ pub struct Generator<'a> {
     /// differencing filter for the parallel branch
     differencing_filter_par: DifferencingFilter,
 }
-
 impl<'a> Generator<'a> {
     pub fn new(m_parms: &MainParms) -> Result<Generator, &'static str> {
         // let mut rng = rand::thread_rng();
@@ -1315,7 +1304,7 @@ fn set_oral_formant_par(
     // instead of taking it as the DC gain.
     if f.is_finite() && bw.is_finite() && peak_gain.is_finite() {
         oral_formant_par.set(f, bw, None)?;
-        let w = 2.0 * consts::PI * f / (m_parms.sample_rate as f64);
+        let w = 2.0 * PI * f / (m_parms.sample_rate as f64);
         let diff_gain = (2.0 - 2.0 * w.cos()).sqrt(); // gain of differencing filter
 
         // compensate differencing filter for F2 to F6
