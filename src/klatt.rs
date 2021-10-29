@@ -720,6 +720,7 @@ pub struct MainParms {
 }
 
 /// Parameters for a sound frame.
+#[derive(PartialEq)]
 pub struct FrameParms {
     /// frame duration in seconds
     pub duration: usize,
@@ -961,12 +962,11 @@ impl<'a> Generator<'a> {
         f_parms: &'a FrameParms,
         out_buf: &mut [f64],
     ) -> Result<(), &'static str> {
-        // SVN: Reference check is required. See https://docs.rs/same/0.1.0/same/trait.Same.html
-        // if f_parms == self.f_parms.unwrap() {
-        //     return Err("FrameParms structure must not be re-used.");
-        // }
-        // if (fParms == this.fParms) {
-        //    throw new Error("FrameParms structure must not be re-used."); }
+        if let Some(parms) = self.f_parms {
+            if parms == f_parms {
+                return Err("FrameParms structure must not be re-used.");
+            }
+        }
 
         self.new_f_parms = Some(f_parms);
         for out_pos in 0..out_buf.len() {
@@ -997,7 +997,6 @@ impl<'a> Generator<'a> {
         let mut voice = glottan_source(self);
 
         let f_parms = self.f_parms.unwrap();
-        // let fState = self.fState;
         let p_state = self.p_state.as_ref().unwrap();
 
         // apply spectral tilt
@@ -1027,7 +1026,6 @@ impl<'a> Generator<'a> {
 
     fn compute_cascade_branch(&mut self, voice: f64) -> f64 {
         let f_parms = self.f_parms.unwrap();
-        // let fState = self.fState;
         let p_state = self.p_state.as_ref().unwrap();
         let cascade_voice = voice * self.f_state.cascade_voicing_lin;
 
@@ -1051,7 +1049,6 @@ impl<'a> Generator<'a> {
 
     fn compute_parallel_branch(&mut self, voice: f64) -> f64 {
         let f_parms = self.f_parms.unwrap();
-        // let fState = self.fState;
         let p_state = self.p_state.as_ref().unwrap();
         let parallel_voice = voice * self.f_state.parallel_voicing_lin;
 
@@ -1107,8 +1104,8 @@ impl<'a> Generator<'a> {
         if let None = self.p_state {
             self.p_state = Some(PeriodState::new());
         }
-        let mut p_state = self.p_state.as_mut().unwrap(); // SVN: Panic is possible because of unwrap()
-        let f_parms = self.f_parms.unwrap(); // SVN: Panic is possible because of unwrap()
+        let mut p_state = self.p_state.as_mut().unwrap();
+        let f_parms = self.f_parms.unwrap();
         let flutter_time = self.abs_position / self.m_parms.sample_rate + self.flutter_time_offset;
         p_state.f0 =
             perform_frequency_modulation(f_parms.f0, f_parms.flutter_level, flutter_time as f64);
@@ -1131,11 +1128,15 @@ impl<'a> Generator<'a> {
     }
 
     fn start_using_new_frame_parameters(&mut self) -> Result<(), &'static str> {
-        let m_parms = self.m_parms;
-        let f_parms = self.f_parms.unwrap(); // SVN: Option unwarap
+        let f_parms = self.f_parms.unwrap();
         self.f_state.breathiness_lin = db_to_lin(f_parms.breathiness_db);
         self.f_state.gain_lin = db_to_lin(f_parms.gain_db);
-        // fState.gainLin = db_to_lin(fParms.gain_db || 0); // SVN: Ommited chec for defined value
+        let db = if f_parms.gain_db.is_finite() {
+            f_parms.gain_db
+        } else {
+            0.0
+        };
+        self.f_state.gain_lin = db_to_lin(db);
         set_tilt_filter(&mut self.tilt_filter, f_parms.tilt_db)?;
 
         // Adjust cascade branch:
@@ -1154,7 +1155,7 @@ impl<'a> Generator<'a> {
         self.f_state.parallel_bypass_lin = db_to_lin(f_parms.parallel_bypass_db);
         set_nasal_formant_par(&mut self.nasal_formant_par, f_parms)?;
         for i in 0..MAX_ORAL_FORMANTS {
-            set_oral_formant_par(&mut self.oral_formant_par[i], m_parms, f_parms, i)?;
+            set_oral_formant_par(&mut self.oral_formant_par[i], self.m_parms, f_parms, i)?;
         }
         Ok(())
     }
