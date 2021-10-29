@@ -17,7 +17,7 @@ fn compare_equal(a1: &[f64], a2: &[f64], eps: Option<f64>) -> bool {
 }
 
 /// Adds two real polynomials.
-fn add(a1: &Vec<f64>, a2: &Vec<f64>, eps: Option<f64>) -> Result<Vec<f64>, &'static str> {
+fn add(a1: &[f64], a2: &[f64], eps: Option<f64>) -> Result<Vec<f64>, &'static str> {
     let n1 = if a1.len() > 0 { a1.len() - 1 } else { 0 };
     let n2 = if a2.len() > 0 { a2.len() - 1 } else { 0 };
     let n3 = max(n1, n2);
@@ -31,7 +31,7 @@ fn add(a1: &Vec<f64>, a2: &Vec<f64>, eps: Option<f64>) -> Result<Vec<f64>, &'sta
 }
 
 /// Multiplies two real polynomials.
-fn multiply(a1: &Vec<f64>, a2: &Vec<f64>, eps: Option<f64>) -> Result<Vec<f64>, &'static str> {
+fn multiply(a1: &[f64], a2: &[f64], eps: Option<f64>) -> Result<Vec<f64>, &'static str> {
     if a1.len() == 0 || a2.len() == 0 {
         return Err("Zero len() arrays.");
     }
@@ -56,7 +56,7 @@ fn multiply(a1: &Vec<f64>, a2: &Vec<f64>, eps: Option<f64>) -> Result<Vec<f64>, 
 
 /// Divides two real polynomials.
 /// Returns [quotient, remainder] = [a1 / a2, a1 % a2].
-fn divide(a1r: &Vec<f64>, a2r: &Vec<f64>, eps: Option<f64>) -> Result<Vec<Vec<f64>>, &'static str> {
+fn divide(a1r: &[f64], a2r: &[f64], eps: Option<f64>) -> Result<Vec<Vec<f64>>, &'static str> {
     if a1r.len() == 0 || a2r.len() == 0 {
         return Err("Zero len() arrays.");
     }
@@ -104,7 +104,7 @@ fn divide(a1r: &Vec<f64>, a2r: &Vec<f64>, eps: Option<f64>) -> Result<Vec<Vec<f6
 }
 
 /// Returns the monic GCD (greatest common divisor) of two polynomials.
-fn gcd(a1: &Vec<f64>, a2: &Vec<f64>, eps: Option<f64>) -> Result<Vec<f64>, &'static str> {
+fn gcd(a1: &[f64], a2: &[f64], eps: Option<f64>) -> Result<Vec<f64>, &'static str> {
     let mut r1 = trim(&a1, eps)?;
     let mut r2 = trim(&a2, eps)?;
     make_monic(&mut r1)?;
@@ -131,7 +131,7 @@ fn gcd(a1: &Vec<f64>, a2: &Vec<f64>, eps: Option<f64>) -> Result<Vec<f64>, &'sta
 }
 
 /// Trims top order zero coefficients.
-fn trim(a: &Vec<f64>, eps: Option<f64>) -> Result<Vec<f64>, &'static str> {
+fn trim(a: &[f64], eps: Option<f64>) -> Result<Vec<f64>, &'static str> {
     let eps = eps.unwrap_or(0.0);
     if a.len() == 0 {
         return Err("Zero length array.");
@@ -158,7 +158,7 @@ fn trim(a: &Vec<f64>, eps: Option<f64>) -> Result<Vec<f64>, &'static str> {
 }
 
 /// Divides the coefficients by the leading coefficient.
-fn make_monic(a: &mut Vec<f64>) -> Result<(), &'static str> {
+fn make_monic(a: &mut [f64]) -> Result<(), &'static str> {
     let len = a.len();
     if len == 0 {
         return Err("Zero length array.");
@@ -181,7 +181,7 @@ fn make_monic(a: &mut Vec<f64>) -> Result<(), &'static str> {
 
 pub fn multiply_fractions(
     f1: &Vec<Vec<f64>>,
-    f2: Vec<Vec<f64>>,
+    f2: &Vec<Vec<f64>>,
     eps: Option<f64>,
 ) -> Result<Vec<Vec<f64>>, &'static str> {
     let top = multiply(&f1[0], &f2[0], eps)?;
