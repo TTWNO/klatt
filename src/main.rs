@@ -1,56 +1,22 @@
-mod lib;
-use lib::{FrameParms, GlottalSourceType, MainParms};
-use rand::prelude::*;
+mod klatt;
+mod poly_real;
+
+use klatt::{FrameParms, GlottalSourceType, MainParms};
 
 fn main() {
-    // println!("Hello, world!");
-
-    // let mut rng = rand::thread_rng();
-
-    // let n1: u8 = rng.gen();
-    // let n2: u16 = rng.gen();
-    // println!("Random u8: {}", n1);
-    // println!("Random u16: {}", n2);
-    // println!("Random u32: {}", rng.gen::<u32>());
-    // println!("Random i32: {}", rng.gen::<i32>());
-    // println!("Random float: {}", rng.gen::<f64>());
-    // println!("Random range(0..1000): {}", rng.gen_range(0..999));
-
-    // let val = lib::perform_frequency_modulation(247f64, 0.25, 661.4476256042583);
-    // println!("{}", val);
-
-    // println!("{}", lib::dbToLin(-25f64));
-    // println!("{}", lib::dbToLin(-15f64));
-    // println!("{}", lib::dbToLin(-10f64));
-    // println!("{}", lib::dbToLin(-5f64));
-    // println!("{}", lib::dbToLin(0f64));
-
-    // run_random_generator();
-
-    run_generate_sound();
+    // run_generate_sound();
+    run_generate_vocal();
 }
 
-#[allow(dead_code)]
-fn run_random_generator() {
-    let mut rng = StdRng::seed_from_u64(32);
-    let mut result = Vec::new();
-
-    for _i in 0..10 {
-        let value: f64 = rng.gen();
-        result.push(value);
-    }
-
-    println!("{:#?}", result);
-}
-
-#[allow(dead_code)]
-fn run_generate_sound() {
-    let m_parms = MainParms {
+fn get_m_parms() -> klatt::MainParms {
+    MainParms {
         sample_rate: 44100,
         glottal_source_type: GlottalSourceType::Impulsive,
-    };
+    }
+}
 
-    let f_params = FrameParms {
+fn get_f_params() -> FrameParms {
+    FrameParms {
         duration: 1,
         f0: 247.0,
         flutter_level: 0.25,
@@ -78,16 +44,29 @@ fn run_generate_sound() {
         parallel_bypass_db: -99.0,
         nasal_formant_db: 0.0,
         oral_formant_db: vec![0.0, -8.0, -15.0, -19.0, -30.0, -35.0],
-    };
+    }
+}
 
-    let f_parms_a = vec![f_params];
-
-    let sound = lib::generate_sound(&m_parms, &f_parms_a);
-
+#[allow(dead_code)]
+fn run_generate_sound() {
+    let sound = klatt::generate_sound(&get_m_parms(), &vec![get_f_params()]);
     match sound {
-        Ok(sound) => println!("Sound: {:#?}", &sound[0..10]),
+        Ok(sound) => println!("Sound: {:#?}", &sound[0..20]),
         Err(error) => {
             println!("Error: {}", error);
+            std::process::exit(1);
+        }
+    }
+}
+
+#[allow(dead_code)]
+fn run_generate_vocal() {
+    let vocal =
+        klatt::get_vocal_tract_transfer_function_coefficients(&get_m_parms(), &get_f_params());
+    match vocal {
+        Ok(vocal) => println!("Vocal: {:#?}", &vocal),
+        Err(vocal) => {
+            println!("Error: {}", vocal);
             std::process::exit(1);
         }
     }

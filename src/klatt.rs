@@ -1,5 +1,7 @@
-#[path = "lib_tests.rs"]
-mod tests;
+use crate::poly_real;
+
+// #[path = "lib_tests.rs"]
+// mod tests;
 
 // use rand::prelude::*;
 use std::f64::consts;
@@ -126,7 +128,6 @@ impl LpFilter1 {
 
     /// Returns the polynomial coefficients of the filter transfer function in the z-plane.
     /// The returned array contains the top and bottom coefficients of the rational fraction, ordered in ascending powers.
-    #[allow(dead_code)]
     pub fn get_transfer_function_coefficients(&self) -> Vec<Vec<f64>> {
         if self.passthrough {
             return vec![vec![1.0], vec![1.0]];
@@ -288,7 +289,6 @@ impl Resonator {
 
     /// Returns the polynomial coefficients of the filter transfer function in the z-plane.
     /// The returned array contains the top and bottom coefficients of the rational fraction, ordered in ascending powers.
-    #[allow(dead_code)]
     pub fn get_transfer_function_coefficients(&self) -> Vec<Vec<f64>> {
         if self.passthrough {
             return vec![vec![1.0], vec![1.0]];
@@ -425,7 +425,6 @@ impl AntiResonator {
 
     /// Returns the polynomial coefficients of the filter transfer function in the z-plane.
     /// The returned array contains the top and bottom coefficients of the rational fraction, ordered in ascending powers.
-    #[allow(dead_code)]
     pub fn get_transfer_function_coefficients(&self) -> Vec<Vec<f64>> {
         if self.passthrough {
             return vec![vec![1.0], vec![1.0]];
@@ -494,8 +493,7 @@ impl DifferencingFilter {
     }
     // Returns the polynomial coefficients of the filter transfer function in the z-plane.
     // The returned array contains the top and bottom coefficients of the rational fraction, ordered in ascending powers.
-    #[allow(dead_code)]
-    pub fn get_transfer_function_coefficients() -> Vec<Vec<f64>> {
+    pub fn get_transfer_function_coefficients(&self) -> Vec<Vec<f64>> {
         return vec![vec![1.0, -1.0], vec![1.0]];
     }
     /// Performs a filter step.
@@ -1381,4 +1379,126 @@ pub fn generate_sound(
         out_buf_pos += frame_len;
     }
     Ok(out_buf)
+}
+
+//--- Transfer function --------------------------------------------------------
+
+const EPS: f64 = 1E-10;
+
+/// Returns the polynomial coefficients of the overall filter transfer function in the z-plane.
+/// The returned array contains the top and bottom coefficients of the rational fraction, ordered in ascending powers.
+pub fn get_vocal_tract_transfer_function_coefficients(
+    m_parms: &MainParms,
+    f_parms: &FrameParms,
+) -> Result<Vec<Vec<f64>>, &'static str> {
+    // glottal source
+    let mut voice: Vec<Vec<f64>> = vec![vec![1.0], vec![1.0]];
+    //
+    let mut tilt_filter = LpFilter1::new(m_parms.sample_rate);
+    set_tilt_filter(&mut tilt_filter, f_parms.tilt_db)?;
+    let tilt_trans = tilt_filter.get_transfer_function_coefficients();
+    voice = poly_real::multiply_fractions(&voice, tilt_trans, Some(EPS))?;
+    //
+    let cascade_trans = match f_parms.cascade_enabled {
+        true => get_cascade_branch_transfer_function_coefficients(m_parms, f_parms)?,
+        false => vec![vec![0.0], vec![1.0]],
+    };
+    let parallel_trans = match f_parms.parallel_enabled {
+        true => get_parallel_branch_transfer_function_coefficients(m_parms, f_parms)?,
+        false => vec![vec![0.0], vec![1.0]],
+    };
+    let branches_trans = poly_real::add_fractions(&cascade_trans, &parallel_trans, Some(EPS))?;
+    let mut out = poly_real::multiply_fractions(&voice, branches_trans, Some(EPS))?;
+    //
+    let mut output_lp_filter = Resonator::new(m_parms.sample_rate);
+    output_lp_filter.set(0.0, m_parms.sample_rate as f64 / 2.0, None)?;
+    let output_lp_trans = output_lp_filter.get_transfer_function_coefficients();
+    out = poly_real::multiply_fractions(&out, output_lp_trans, Some(EPS))?;
+    //
+    let db = if f_parms.gain_db.is_finite() {
+        f_parms.gain_db
+    } else {
+        0.0
+    };
+    let gain_lin = db_to_lin(db);
+    out = poly_real::multiply_fractions(&out, vec![vec![gain_lin], vec![1.0]], Some(EPS))?;
+    //
+    Ok(out)
+}
+
+fn get_cascade_branch_transfer_function_coefficients(
+    m_parms: &MainParms,
+    f_parms: &FrameParms,
+) -> Result<Vec<Vec<f64>>, &'static str> {
+    let cascade_voicing_lin = db_to_lin(f_parms.cascade_voicing_db);
+    let mut v: Vec<Vec<f64>> = vec![vec![cascade_voicing_lin], vec![1.0]];
+    //
+    let mut nasal_antiformant_casc = AntiResonator::new(m_parms.sample_rate);
+    set_nasal_antiformant_casc(&mut nasal_antiformant_casc, f_parms)?;
+    let nasal_antiformant_trans = nasal_antiformant_casc.get_transfer_function_coefficients();
+    v = poly_real::multiply_fractions(&v, nasal_antiformant_trans, Some(EPS))?;
+    //
+    let mut nasal_formant_casc = Resonator::new(m_parms.sample_rate);
+    set_nasal_formant_casc(&mut nasal_formant_casc, f_parms)?;
+    let nasal_formant_trans = nasal_formant_casc.get_transfer_function_coefficients();
+    v = poly_real::multiply_fractions(&v, nasal_formant_trans, Some(EPS))?;
+    //
+    for i in 0..MAX_ORAL_FORMANTS {
+        let mut oral_formant_casc = Resonator::new(m_parms.sample_rate);
+        set_oral_formant_casc(&mut oral_formant_casc, f_parms, i)?;
+        let oral_formant_casc_trans = oral_formant_casc.get_transfer_function_coefficients();
+        v = poly_real::multiply_fractions(&v, oral_formant_casc_trans, Some(EPS))?;
+    }
+    //
+    Ok(v)
+}
+
+fn get_parallel_branch_transfer_function_coefficients(
+    m_parms: &MainParms,
+    f_parms: &FrameParms,
+) -> Result<Vec<Vec<f64>>, &'static str> {
+    let parallel_voicing_lin = db_to_lin(f_parms.parallel_voicing_db);
+    let source: Vec<Vec<f64>> = vec![vec![parallel_voicing_lin], vec![1.0]];
+    //
+    let differencing_filter_par = DifferencingFilter::new();
+    let differencing_filter_trans = differencing_filter_par.get_transfer_function_coefficients();
+    let source2 = poly_real::multiply_fractions(&source, differencing_filter_trans, Some(EPS))?;
+    let mut v: Vec<Vec<f64>> = vec![vec![parallel_voicing_lin], vec![1.0]];
+    //
+    let mut nasal_formant_par = Resonator::new(m_parms.sample_rate);
+    set_nasal_formant_par(&mut nasal_formant_par, f_parms)?;
+    let nasal_formant_trans = nasal_formant_par.get_transfer_function_coefficients();
+    v = poly_real::add_fractions(
+        &v,
+        &poly_real::multiply_fractions(&source, nasal_formant_trans, None)?,
+        Some(EPS),
+    )?;
+    //
+    for i in 0..MAX_ORAL_FORMANTS {
+        let mut oral_formant_par = Resonator::new(m_parms.sample_rate);
+        set_oral_formant_par(&mut oral_formant_par, m_parms, f_parms, i)?;
+        let oral_pformant_trans = oral_formant_par.get_transfer_function_coefficients();
+        // F1 is applied to source, F2 to F6 are applied to difference
+        let formant_in = if i == 0 { &source } else { &source2 };
+        let formant_out =
+            poly_real::multiply_fractions(&formant_in, oral_pformant_trans, Some(EPS))?;
+        let alternating_sign = if i % 2 == 0 { 1.0 } else { -1.0 };
+        let v2 = poly_real::multiply_fractions(
+            &formant_out,
+            vec![vec![alternating_sign], vec![1.0]],
+            Some(EPS),
+        )?;
+        v = poly_real::add_fractions(&v, &v2, Some(EPS))?;
+    }
+    //
+    let parallel_bypass_lin = db_to_lin(f_parms.parallel_bypass_db);
+    // bypass is applied to source difference
+    let parallel_bypass = poly_real::multiply_fractions(
+        &source2,
+        vec![vec![parallel_bypass_lin], vec![1.0]],
+        Some(EPS),
+    )?;
+    v = poly_real::add_fractions(&v, &parallel_bypass, Some(EPS))?;
+    //
+    Ok(v)
 }
