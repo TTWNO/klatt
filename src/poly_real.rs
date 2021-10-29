@@ -67,31 +67,19 @@ fn divide(a1r: &[f64], a2r: &[f64], eps: Option<f64>) -> Result<Vec<Vec<f64>>, &
             return Err("Polynomial division by zero.");
         }
         if a2[0] == 1.0 {
-            // SVN: Check Float64Array.from(a1)
-            // return [Float64Array.from(a1), Float64Array.of(0)];
-            return Ok(vec![a1, vec![0.0]]);
+            return Ok(vec![a1.to_vec(), vec![0.0]]);
         }
-        // SVN: Check Float64Array.of(0)
-        // return [divByReal(a1, a2[0]), Float64Array.of(0)];
-        // SVN: divByReal
-        // return [divByReal(a1, a2[0]), Float64Array.of(0)];
-        return Ok(vec![a1, vec![0.0]]);
+        return Ok(vec![divByReal(&a1, a2[0]), vec![0.0]]);
     }
     let n1 = a1.len() - 1;
     let n2 = a2.len() - 1;
     if n1 < n2 {
-        // SVN: Check Float64Array.from(a1)
-        // return [Float64Array.of(0), Float64Array.from(a1)];
-        return Ok(vec![vec![0.0], a1]);
+        return Ok(vec![vec![0.0], a1.to_vec()]);
     }
-    // SVN: Check Float64Array.from(a1)
-    // let a = Float64Array.from(a1);
-    let mut a = a1;
+    let mut a = a1.to_vec();
 
     let lc2 = a2[n2]; // leading coefficient of a2
-                      // SVN: Reverse for loop
-                      // for (let i = n1 - n2; i >= 0; i--) {
-    for i in n1 - n2..0 {
+    for i in (0..=(n1 - n2)).rev() {
         let r = a[n2 + i] / lc2;
         a[n2 + i] = r;
         for j in 0..n2 {
@@ -100,7 +88,7 @@ fn divide(a1r: &[f64], a2r: &[f64], eps: Option<f64>) -> Result<Vec<Vec<f64>>, &
     }
     let quotient = trim(&a[n2..].to_vec(), eps)?;
     let remainder = trim(&a[0..n2].to_vec(), eps)?;
-    return Ok(vec![quotient, remainder]);
+    Ok(vec![quotient, remainder])
 }
 
 /// Returns the monic GCD (greatest common divisor) of two polynomials.
@@ -113,7 +101,6 @@ fn gcd(a1: &[f64], a2: &[f64], eps: Option<f64>) -> Result<Vec<f64>, &'static st
         let t = r1;
         r1 = r2;
         r2 = t;
-        //    [r1, r2] = [r2, r1];
     }
     loop {
         if r2.len() < 2 {
@@ -137,9 +124,7 @@ fn trim(a: &[f64], eps: Option<f64>) -> Result<Vec<f64>, &'static str> {
         return Err("Zero length array.");
     }
     if (a[a.len() - 1]).abs() > eps {
-        let mut res = vec![0.0; a.len()];
-        res.copy_from_slice(&a[..]);
-        return Ok(res);
+        return Ok(a.to_vec());
     }
     let mut len = a.len() - 1;
     while len > 0 && (a[len - 1]).abs() <= eps {
@@ -147,8 +132,6 @@ fn trim(a: &[f64], eps: Option<f64>) -> Result<Vec<f64>, &'static str> {
     }
     if len == 0 {
         return Ok(vec![0.0]);
-        // SVN: check
-        // return Float64Array.of(0);
     }
     let mut a2 = vec![0.0; len];
     for i in 0..len {
@@ -179,14 +162,12 @@ fn make_monic(a: &mut [f64]) -> Result<(), &'static str> {
     Ok(())
 }
 
-pub fn multiply_fractions(
-    f1: &Vec<Vec<f64>>,
-    f2: &Vec<Vec<f64>>,
-    eps: Option<f64>,
-) -> Result<Vec<Vec<f64>>, &'static str> {
-    let top = multiply(&f1[0], &f2[0], eps)?;
-    let bottom = multiply(&f1[1], &f2[1], eps)?;
-    Ok(vec![top, bottom])
+fn divByReal(a: &[f64], b: f64) -> Vec<f64> {
+    let mut a2 = vec![0.0; a.len()];
+    for i in 0..a.len() {
+        a2[i] = a[i] / b;
+    }
+    return a2;
 }
 
 pub fn add_fractions(
@@ -213,5 +194,15 @@ pub fn add_fractions(
     let top = vec![];
     let bottom = vec![];
 
+    Ok(vec![top, bottom])
+}
+
+pub fn multiply_fractions(
+    f1: &Vec<Vec<f64>>,
+    f2: &Vec<Vec<f64>>,
+    eps: Option<f64>,
+) -> Result<Vec<Vec<f64>>, &'static str> {
+    let top = multiply(&f1[0], &f2[0], eps)?;
+    let bottom = multiply(&f1[1], &f2[1], eps)?;
     Ok(vec![top, bottom])
 }
