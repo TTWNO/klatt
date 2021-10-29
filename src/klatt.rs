@@ -1,6 +1,6 @@
 use crate::poly_real;
+use rand::prelude::*;
 use std::f64::consts::PI;
-// use rand::prelude::*;
 
 //--- Filters ------------------------------------------------------------------
 
@@ -509,12 +509,8 @@ impl DifferencingFilter {
 
 /// Returns a random number within the range -1 .. 1.
 fn get_white_noise() -> f64 {
-    //return Math.random() * 2 - 1; }                         // problem: -1 is included but +1 is not included
-    // let mut rng = rand::thread_rng();
-    // let val: f64 = rng.gen();
     // problem: -1 is included but +1 is not included
-    // return val * 2.0 - 1.0;
-    return 0.5;
+    return random::<f64>() * 2.0 - 1.0;
 }
 
 /// A low-pass filtered noise source.
@@ -903,14 +899,12 @@ pub struct Generator<'a> {
 }
 impl<'a> Generator<'a> {
     pub fn new(m_parms: &MainParms) -> Result<Generator, &'static str> {
-        // let mut rng = rand::thread_rng();
-
         let mut generator = Generator {
             m_parms,
             f_state: FrameState::new(),
             abs_position: 0,
             tilt_filter: LpFilter1::new(m_parms.sample_rate),
-            flutter_time_offset: 555, //rng.gen_range(0..1000), //Math.random() * 1000;
+            flutter_time_offset: (random::<f64>() * 1000.0) as usize,
             output_lp_filter: Resonator::new(m_parms.sample_rate),
             f_parms: None,
             new_f_parms: None,
