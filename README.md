@@ -1,5 +1,6 @@
 # klatt-syn-rs
 
+This is a conversion from TypeScript to Rust of [KlattSyn - Klatt Formant Synthesizer](https://github.com/chdh/klatt-syn)
 ## Launch
 
 1. Open the project in VS Code
@@ -24,4 +25,24 @@ flutter_time_offset: (rand::random::<f64>() * 1000.0) as usize,
 with
 ``` Rust
 flutter_time_offset: 555, 
+```
+
+Do the corresponding changes to the TypeScript sources cloned from [github.com/chdh/klatt-syn](https://github.com/chdh/klatt-syn)
+
+In the `.src/Klatt.ts` file:
+- in the method `getWhiteNoise()` replace 
+``` TypeScript
+return Math.random() * 2 - 1;
+```
+with
+``` TypeScript
+return 0.5
+```
+- in the `constructor` of the `Generator` class, replace
+``` TypeScript
+this.flutterTimeOffset = Math.random() * 1000;
+```
+with
+``` TypeScript
+this.flutterTimeOffset = 555;
 ```
