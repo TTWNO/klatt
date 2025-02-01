@@ -1,4 +1,7 @@
 #![no_std]
+#![deny(
+    clippy::cargo,
+)]
 
 extern crate alloc;
 

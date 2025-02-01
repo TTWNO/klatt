@@ -2,6 +2,12 @@
 name = "klatt"
 version = "0.1.0"
 edition = "2024"
+license = "MIT or Apache-2.0"
+description = "Klatt Formant Speech Synthesis, without the standard library!"
+readme = "README.md"
+repository = "https://github.com/TTWNO/klatt/"
+keywords = ["klatt"]
+categories = ["no-std", "embedded", "speech", "accessibility", "multimedia::audio"]
 
 [dependencies]
 libm = { version = "0.2.11", default-features = false }
@@ -9,4 +15,4 @@ rand = { version = "0.9.0", default-features = false }
 
 [dev-dependencies]
 hound = "3.5.1"
-rand = { version = "0.9.0", default-features = false, features = ["small_rng"] }
+rand = { version = "0.9.0", default-features = false }

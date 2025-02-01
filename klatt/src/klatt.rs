@@ -516,12 +516,10 @@ impl DifferencingFilter {
 
 /// Returns a random number within the range -1 .. 1.
 fn get_white_noise<R: Rng>(rng: &mut R) -> f64 {
-    // problem: -1 is included but +1 is not included
-    //let x = rng.random::<f64>() * 2.0 - 1.0;
-    //assert!(x > -1.0);
-    //assert!(x <  1.0);
-    //x
-    0.5
+    let x = rng.random_range(-1.0..=1.0);
+    assert!(x >= -1.0, "{x} is too small");
+    assert!(x <=  1.0, "{x} is too big");
+    x
 }
 
 /// A low-pass filtered noise source.
@@ -913,14 +911,13 @@ pub struct Generator<'a, R> {
     rng: R,
 }
 impl<'a, R: Rng + Clone> Generator<'a, R> {
-    pub fn new(m_parms: &MainParms, rng: R) -> Result<Generator<R>, &'static str> {
+    pub fn new(m_parms: &MainParms, mut rng: R) -> Result<Generator<R>, &'static str> {
         let mut generator = Generator {
             m_parms,
             f_state: FrameState::new(),
             abs_position: 0,
             tilt_filter: LpFilter1::new(m_parms.sample_rate),
-            //flutter_time_offset:  (rng.random::<f64>() * 1000.0) as usize,
-            flutter_time_offset: 555,
+            flutter_time_offset:  (rng.random::<f64>() * 1000.0) as usize,
             output_lp_filter: Resonator::new(m_parms.sample_rate),
             f_parms: None,
             new_f_parms: None,
