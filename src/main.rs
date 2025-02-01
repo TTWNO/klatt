@@ -2,11 +2,27 @@ mod app_params;
 #[allow(dead_code)]
 mod klatt;
 mod poly_real;
+use hound::{
+	WavWriter,
+	WavSpec,
+	SampleFormat,
+};
 
 fn run_generate_sound() {
+		let mut wav = WavWriter::create("out.wav", WavSpec {
+				channels: 1,
+				sample_rate: 16000,
+				bits_per_sample: 32,
+				sample_format: SampleFormat::Float,
+		}).unwrap();
     let sound = klatt::generate_sound(&app_params::m_parms(), &vec![app_params::f_params()]);
     match sound {
-        Ok(sound) => println!("Sound: {:#?}", &sound[0..20]),
+        Ok(sound) => {
+					for sample in sound {
+						let s2: f32 = sample as f32;
+						wav.write_sample(s2).unwrap();
+					}
+				},
         Err(error) => {
             println!("Error: {}", error);
             std::process::exit(1);

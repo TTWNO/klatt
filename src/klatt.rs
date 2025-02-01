@@ -509,7 +509,8 @@ impl DifferencingFilter {
 /// Returns a random number within the range -1 .. 1.
 fn get_white_noise() -> f64 {
     // problem: -1 is included but +1 is not included
-    return rand::random::<f64>() * 2.0 - 1.0;
+    //return rand::random::<f64>() * 2.0 - 1.0;
+    return 0.5;
 }
 
 /// A low-pass filtered noise source.
@@ -903,7 +904,8 @@ impl<'a> Generator<'a> {
             f_state: FrameState::new(),
             abs_position: 0,
             tilt_filter: LpFilter1::new(m_parms.sample_rate),
-            flutter_time_offset: (rand::random::<f64>() * 1000.0) as usize,
+           // flutter_time_offset: (rand::random::<f64>() * 1000.0) as usize,
+            flutter_time_offset: 555,
             output_lp_filter: Resonator::new(m_parms.sample_rate),
             f_parms: None,
             new_f_parms: None,
