@@ -1,5 +1,7 @@
 use hound::{SampleFormat, WavSpec, WavWriter};
-use klatt::{f_params, generate_sound, get_vocal_tract_transfer_function_coefficients, m_parms};
+use klatt::{generate_sound, get_vocal_tract_transfer_function_coefficients};
+mod _params;
+use _params::{f_params, m_parms};
 use rand::{SeedableRng, rngs::SmallRng};
 
 fn run_generate_sound() {

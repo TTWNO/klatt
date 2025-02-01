@@ -1,5 +1,4 @@
-use crate::klatt::{FrameParms, GlottalSourceType, MainParms};
-use alloc::vec;
+use klatt::{FrameParms, GlottalSourceType, MainParms};
 
 pub fn m_parms() -> MainParms {
     MainParms {
