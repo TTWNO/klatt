@@ -1,5 +1,5 @@
 use rand::{
-	rngs::SmallRng,
+	rngs::ThreadRng,
 	SeedableRng,
 };
 use klatt::{
@@ -15,10 +15,10 @@ use hound::{
 };
 
 fn run_generate_sound() {
-		let rng = SmallRng::seed_from_u64(69);
+		let rng = ThreadRng::default();
 		let mut wav = WavWriter::create("out.wav", WavSpec {
 				channels: 1,
-				sample_rate: 16000,
+				sample_rate: 44100,
 				bits_per_sample: 32,
 				sample_format: SampleFormat::Float,
 		}).unwrap();
@@ -26,6 +26,7 @@ fn run_generate_sound() {
     match sound {
         Ok(sound) => {
 					for sample in sound {
+            println!("{:?}", sample);
 						let s2: f32 = sample as f32;
 						wav.write_sample(s2).unwrap();
 					}
