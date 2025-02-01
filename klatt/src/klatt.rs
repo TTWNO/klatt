@@ -495,7 +495,7 @@ impl DifferencingFilter {
     }
     // Returns the polynomial coefficients of the filter transfer function in the z-plane.
     // The returned array contains the top and bottom coefficients of the rational fraction, ordered in ascending powers.
-    pub fn get_transfer_function_coefficients(&self) -> Vec<Vec<f64>> {
+    pub fn get_transfer_function_coefficients() -> Vec<Vec<f64>> {
         vec![vec![1.0, -1.0], vec![1.0]]
     }
     /// Performs a filter step.
@@ -1474,8 +1474,7 @@ fn get_parallel_branch_transfer_function_coefficients(
     let parallel_voicing_lin = db_to_lin(f_parms.parallel_voicing_db);
     let source: Vec<Vec<f64>> = vec![vec![parallel_voicing_lin], vec![1.0]];
     //
-    let differencing_filter_par = DifferencingFilter::new();
-    let differencing_filter_trans = differencing_filter_par.get_transfer_function_coefficients();
+    let differencing_filter_trans = DifferencingFilter::get_transfer_function_coefficients();
     let source2 = poly_real::multiply_fractions(&source, &differencing_filter_trans, Some(EPS))?;
     //
     let mut v: Vec<Vec<f64>> = vec![vec![0.0], vec![1.0]];
