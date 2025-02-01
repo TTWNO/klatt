@@ -1,8 +1,7 @@
 use alloc::{vec, vec::Vec};
 use core::cmp::{max, min};
 use core::{
-    iter::Iterator, option::Option,
-    result::Result, result::Result::Err, result::Result::Ok,
+    iter::Iterator, option::Option, result::Result, result::Result::Err, result::Result::Ok,
 };
 
 /// Returns `true` if two polynomials are equal.
@@ -23,8 +22,8 @@ fn compare_equal(a1: &[f64], a2: &[f64], eps: Option<f64>) -> bool {
 
 /// Adds two real polynomials.
 fn add(a1: &[f64], a2: &[f64], eps: Option<f64>) -> Result<Vec<f64>, &'static str> {
-    let n1 = if !a1.is_empty() { a1.len() - 1 } else { 0 };
-    let n2 = if !a2.is_empty() { a2.len() - 1 } else { 0 };
+    let n1 = if a1.is_empty() { 0 } else { a1.len() - 1 };
+    let n2 = if a2.is_empty() { 0 } else { a2.len() - 1 };
     let n3 = max(n1, n2);
     let mut a3 = vec![0.0; n3 + 1];
     for i in 0..=n3 {
@@ -72,16 +71,16 @@ fn divide(a1r: &[f64], a2r: &[f64], eps: Option<f64>) -> Result<Vec<Vec<f64>>, &
             return Err("Polynomial division by zero.");
         }
         if a2[0] == 1.0 {
-            return Ok(vec![a1.to_vec(), vec![0.0]]);
+            return Ok(vec![a1.clone(), vec![0.0]]);
         }
         return Ok(vec![div_by_real(&a1, a2[0]), vec![0.0]]);
     }
     let n1 = a1.len() - 1;
     let n2 = a2.len() - 1;
     if n1 < n2 {
-        return Ok(vec![vec![0.0], a1.to_vec()]);
+        return Ok(vec![vec![0.0], a1.clone()]);
     }
-    let mut a = a1.to_vec();
+    let mut a = a1.clone();
 
     let lc2 = a2[n2]; // leading coefficient of a2
     for i in (0..=(n1 - n2)).rev() {
@@ -110,7 +109,7 @@ fn gcd(a1: &[f64], a2: &[f64], eps: Option<f64>) -> Result<Vec<f64>, &'static st
             // GCD is 1
             return Ok(vec![1.0]);
         }
-        let mut r = divide(&r1, &r2, eps)?[1].to_vec();
+        let mut r = divide(&r1, &r2, eps)?[1].clone();
         if r.len() == 1 && r[0] == 0.0 {
             return Ok(r2);
         }
@@ -180,7 +179,7 @@ pub fn add_fractions(
 ) -> Result<Vec<Vec<f64>>, &'static str> {
     if compare_equal(&f1[1], &f2[1], eps) {
         // if same denominator add numerators
-        return Ok(vec![add(&f1[0], &f2[0], eps)?, f1[1].to_vec()]);
+        return Ok(vec![add(&f1[0], &f2[0], eps)?, f1[1].clone()]);
     }
     let g = gcd(&f1[1], &f2[1], eps)?; // GCD of demoninators
     if g.len() == 1 && g[0] == 1.0 {

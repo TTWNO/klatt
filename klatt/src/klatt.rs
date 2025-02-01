@@ -3,8 +3,8 @@ use alloc::{vec, vec::Vec};
 use core::f64::consts::PI;
 use core::prelude::rust_2024::derive;
 use core::{
-    cmp::PartialEq, option::Option, option::Option::None, option::Option::Some,
-    result::Result, result::Result::Err, result::Result::Ok,
+    cmp::PartialEq, option::Option, option::Option::None, option::Option::Some, result::Result,
+    result::Result::Err, result::Result::Ok,
 };
 use libm::{cos, exp, pow, round, sin, sqrt};
 use rand::Rng;
@@ -518,7 +518,7 @@ impl DifferencingFilter {
 fn get_white_noise<R: Rng>(rng: &mut R) -> f64 {
     let x = rng.random_range(-1.0..=1.0);
     assert!(x >= -1.0, "{x} is too small");
-    assert!(x <=  1.0, "{x} is too big");
+    assert!(x <= 1.0, "{x} is too big");
     x
 }
 
@@ -917,7 +917,7 @@ impl<'a, R: Rng + Clone> Generator<'a, R> {
             f_state: FrameState::new(),
             abs_position: 0,
             tilt_filter: LpFilter1::new(m_parms.sample_rate),
-            flutter_time_offset:  (rng.random::<f64>() * 1000.0) as usize,
+            flutter_time_offset: (rng.random::<f64>() * 1000.0) as usize,
             output_lp_filter: Resonator::new(m_parms.sample_rate),
             f_parms: None,
             new_f_parms: None,
@@ -985,7 +985,7 @@ impl<'a, R: Rng + Clone> Generator<'a, R> {
                     }
                 }
                 None => self.start_new_period()?,
-            };
+            }
 
             out_buf[out_pos] = self.compute_next_output_signal_sample();
             self.p_state.as_mut().unwrap().position_in_period += 1;
@@ -1016,14 +1016,16 @@ impl<'a, R: Rng + Clone> Generator<'a, R> {
             voice += get_white_noise(&mut self.rng) * self.f_state.breathiness_lin;
         }
 
-        let cascade_out = match f_parms.cascade_enabled {
-            true => self.compute_cascade_branch(voice),
-            false => 0.0,
+        let cascade_out = if f_parms.cascade_enabled {
+            self.compute_cascade_branch(voice)
+        } else {
+            0.0
         };
 
-        let parallel_out = match f_parms.parallel_enabled {
-            true => self.compute_parallel_branch(voice),
-            false => 0.0,
+        let parallel_out = if f_parms.parallel_enabled {
+            self.compute_parallel_branch(voice)
+        } else {
+            0.0
         };
 
         let mut out = cascade_out + parallel_out;
@@ -1200,7 +1202,7 @@ impl<'a, R: Rng + Clone> Generator<'a, R> {
                 .as_mut()
                 .unwrap()
                 .start_period(self.p_state.as_ref().unwrap().open_phase_length),
-            _ => Ok(()),
+            GlottalSourceType::Noise => Ok(()),
         }
     }
 }
