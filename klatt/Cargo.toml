@@ -5,7 +5,8 @@ edition = "2024"
 
 [dependencies]
 libm = { version = "0.2.11", default-features = false }
-rand = { version = "0.9.0", default-features = false, features = ["small_rng"] }
+rand = { version = "0.9.0", default-features = false }
 
 [dev-dependencies]
 hound = "3.5.1"
+rand = { version = "0.9.0", default-features = false, features = ["small_rng"] }

@@ -1,9 +1,9 @@
 use hound::{SampleFormat, WavSpec, WavWriter};
 use klatt::{f_params, generate_sound, get_vocal_tract_transfer_function_coefficients, m_parms};
-use rand::{SeedableRng, rngs::ThreadRng};
+use rand::{SeedableRng, rngs::SmallRng};
 
 fn run_generate_sound() {
-    let rng = ThreadRng::default();
+    let rng = SmallRng::seed_from_u64(69);
     let mut wav = WavWriter::create(
         "out.wav",
         WavSpec {
