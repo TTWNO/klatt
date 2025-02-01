@@ -60,6 +60,8 @@ fn multiply(a1: &[f64], a2: &[f64], eps: Option<f64>) -> Result<Vec<f64>, &'stat
 
 /// Divides two real polynomials.
 /// Returns [quotient, remainder] = [a1 / a2, a1 % a2].
+// fine for us because 1.0 is considered a special value (set by us)
+#[allow(clippy::float_cmp)]
 fn divide(a1r: &[f64], a2r: &[f64], eps: Option<f64>) -> Result<Vec<Vec<f64>>, &'static str> {
     if a1r.is_empty() || a2r.is_empty() {
         return Err("Zero len() arrays.");
@@ -143,6 +145,8 @@ fn trim(a: &[f64], eps: Option<f64>) -> Result<Vec<f64>, &'static str> {
 }
 
 /// Divides the coefficients by the leading coefficient.
+// fine for us because 1.0 is considered a special value (set by us)
+#[allow(clippy::float_cmp)]
 fn make_monic(a: &mut [f64]) -> Result<(), &'static str> {
     let len = a.len();
     if len == 0 {
@@ -172,9 +176,11 @@ fn div_by_real(a: &[f64], b: f64) -> Vec<f64> {
     a2
 }
 
+// fine for us because 1.0 is considered a special value (set by us)
+#[allow(clippy::float_cmp)]
 pub fn add_fractions(
-    f1: &Vec<Vec<f64>>,
-    f2: &Vec<Vec<f64>>,
+    f1: &[Vec<f64>],
+    f2: &[Vec<f64>],
     eps: Option<f64>,
 ) -> Result<Vec<Vec<f64>>, &'static str> {
     if compare_equal(&f1[1], &f2[1], eps) {
@@ -200,8 +206,8 @@ pub fn add_fractions(
 }
 
 pub fn multiply_fractions(
-    f1: &Vec<Vec<f64>>,
-    f2: &Vec<Vec<f64>>,
+    f1: &[Vec<f64>],
+    f2: &[Vec<f64>],
     eps: Option<f64>,
 ) -> Result<Vec<Vec<f64>>, &'static str> {
     let top = multiply(&f1[0], &f2[0], eps)?;

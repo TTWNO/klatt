@@ -1104,6 +1104,13 @@ impl<'a, R: Rng + Clone> Generator<'a, R> {
     }
 
     /// Starts a new F0 period.
+    // this is fine because it only operates on two variables:
+    //
+    // - period_length
+    // - sample_rate
+    //
+    // Both of which will do.... something weird if it ends up being negative.
+    #[allow(clippy::cast_sign_loss)]
     fn start_new_period(&mut self) -> Result<(), &'static str> {
         if let Some(new_f_parms) = self.new_f_parms {
             // To reduce glitches, new frame parameters are only activated at the start of a new F0 period.
@@ -1400,13 +1407,15 @@ pub fn get_vocal_tract_transfer_function_coefficients(
     let tilt_trans = &tilt_filter.get_transfer_function_coefficients();
     voice = poly_real::multiply_fractions(&voice, tilt_trans, Some(EPS))?;
     //
-    let cascade_trans = match f_parms.cascade_enabled {
-        true => get_cascade_branch_transfer_function_coefficients(m_parms, f_parms)?,
-        false => vec![vec![0.0], vec![1.0]],
+    let cascade_trans = if f_parms.cascade_enabled {
+        get_cascade_branch_transfer_function_coefficients(m_parms, f_parms)?
+    } else {
+        vec![vec![0.0], vec![1.0]]
     };
-    let parallel_trans = match f_parms.parallel_enabled {
-        true => get_parallel_branch_transfer_function_coefficients(m_parms, f_parms)?,
-        false => vec![vec![0.0], vec![1.0]],
+    let parallel_trans = if f_parms.parallel_enabled {
+        get_parallel_branch_transfer_function_coefficients(m_parms, f_parms)?
+    } else {
+        vec![vec![0.0], vec![1.0]]
     };
     let branches_trans = poly_real::add_fractions(&cascade_trans, &parallel_trans, Some(EPS))?;
     let mut out = poly_real::multiply_fractions(&voice, &branches_trans, Some(EPS))?;
@@ -1422,7 +1431,7 @@ pub fn get_vocal_tract_transfer_function_coefficients(
         0.0
     };
     let gain_lin = db_to_lin(db);
-    out = poly_real::multiply_fractions(&out, &vec![vec![gain_lin], vec![1.0]], Some(EPS))?;
+    out = poly_real::multiply_fractions(&out, &[vec![gain_lin], vec![1.0]], Some(EPS))?;
     //
     Ok(out)
 }
@@ -1487,7 +1496,7 @@ fn get_parallel_branch_transfer_function_coefficients(
         let alternating_sign = if i % 2 == 0 { 1.0 } else { -1.0 };
         let v2 = poly_real::multiply_fractions(
             &formant_out,
-            &vec![vec![alternating_sign], vec![1.0]],
+            &[vec![alternating_sign], vec![1.0]],
             Some(EPS),
         )?;
         v = poly_real::add_fractions(&v, &v2, Some(EPS))?;
@@ -1497,7 +1506,7 @@ fn get_parallel_branch_transfer_function_coefficients(
     // bypass is applied to source difference
     let parallel_bypass = poly_real::multiply_fractions(
         &source2,
-        &vec![vec![parallel_bypass_lin], vec![1.0]],
+        &[vec![parallel_bypass_lin], vec![1.0]],
         Some(EPS),
     )?;
     v = poly_real::add_fractions(&v, &parallel_bypass, Some(EPS))?;
