@@ -3,7 +3,7 @@ use alloc::{vec, vec::Vec};
 use core::f64::consts::PI;
 use core::prelude::rust_2024::derive;
 use core::{
-    cmp::PartialEq, iter::Iterator, option::Option, option::Option::None, option::Option::Some,
+    cmp::PartialEq, option::Option, option::Option::None, option::Option::Some,
     result::Result, result::Result::Err, result::Result::Ok,
 };
 use libm::{cos, exp, pow, round, sin, sqrt};
@@ -76,7 +76,7 @@ impl LpFilter1 {
     ///    Sample rate in Hz.
     fn new(sample_rate: usize) -> Self {
         LpFilter1 {
-            sample_rate: sample_rate,
+            sample_rate,
             a: 0.0,
             b: 0.0,
             y1: 0.0,
@@ -106,7 +106,7 @@ impl LpFilter1 {
             return Err("Invalid filter parameters.");
         }
 
-        let w = 2.0 * PI * (f as f64) / (self.sample_rate as f64);
+        let w = 2.0 * PI * f / (self.sample_rate as f64);
         let q = (1.0 - pow(g, 2.0) * cos(w)) / (1.0 - pow(g, 2.0));
         self.b = q - sqrt(pow(q, 2.0) - 1.0);
         self.a = (1.0 - self.b) * extra_gain;
@@ -137,7 +137,7 @@ impl LpFilter1 {
         if self.muted {
             return vec![vec![0.0], vec![1.0]];
         }
-        return vec![vec![self.a], vec![1.0, -self.b]];
+        vec![vec![self.a], vec![1.0, -self.b]]
     }
 
     /// Performs a filter step.
@@ -156,7 +156,7 @@ impl LpFilter1 {
         }
         let y = self.a * x + self.b * self.y1;
         self.y1 = y;
-        return y;
+        y
     }
 }
 
@@ -223,7 +223,7 @@ impl Resonator {
     /// ```
     fn new(sample_rate: usize) -> Self {
         Resonator {
-            sample_rate: sample_rate,
+            sample_rate,
             a: 0.0,
             b: 0.0,
             c: 0.0,
@@ -298,7 +298,7 @@ impl Resonator {
         if self.muted {
             return vec![vec![0.0], vec![1.0]];
         }
-        return vec![vec![self.a], vec![1.0, -self.b, -self.c]];
+        vec![vec![self.a], vec![1.0, -self.b, -self.c]]
     }
 
     /// Performs a filter step.
@@ -318,7 +318,7 @@ impl Resonator {
         let y = self.a * x + self.b * self.y1 + self.c * self.y2;
         self.y2 = self.y1;
         self.y1 = y;
-        return y;
+        y
     }
 }
 
@@ -364,7 +364,7 @@ impl AntiResonator {
     /// ```
     pub fn new(sample_rate: usize) -> Self {
         AntiResonator {
-            sample_rate: sample_rate,
+            sample_rate,
 
             a: 0.0,
             b: 0.0,
@@ -434,7 +434,7 @@ impl AntiResonator {
         if self.muted {
             return vec![vec![0.0], vec![1.0]];
         }
-        return vec![vec![self.a, self.b, self.c], vec![1.0]];
+        vec![vec![self.a, self.b, self.c], vec![1.0]]
     }
     /// Performs a filter step.
     /// ### params
@@ -453,7 +453,7 @@ impl AntiResonator {
         let y = self.a * x + self.b * self.x1 + self.c * self.x2;
         self.x2 = self.x1;
         self.x1 = x;
-        return y;
+        y
     }
 }
 
@@ -496,7 +496,7 @@ impl DifferencingFilter {
     // Returns the polynomial coefficients of the filter transfer function in the z-plane.
     // The returned array contains the top and bottom coefficients of the rational fraction, ordered in ascending powers.
     pub fn get_transfer_function_coefficients(&self) -> Vec<Vec<f64>> {
-        return vec![vec![1.0, -1.0], vec![1.0]];
+        vec![vec![1.0, -1.0], vec![1.0]]
     }
     /// Performs a filter step.
     /// ### params
@@ -508,7 +508,7 @@ impl DifferencingFilter {
     pub fn step(&mut self, x: f64) -> f64 {
         let y = x - self.x1;
         self.x1 = x;
-        return y;
+        y
     }
 }
 
@@ -521,7 +521,7 @@ fn get_white_noise<R: Rng>(rng: &mut R) -> f64 {
     //assert!(x > -1.0);
     //assert!(x <  1.0);
     //x
-    return 0.5;
+    0.5
 }
 
 /// A low-pass filtered noise source.
@@ -542,7 +542,7 @@ impl<R: Rng> LpNoiseSource<R> {
 
         // compensate amplitude for output range -1 .. +1
         // Create an LP filter with the same characteristics but with our sampling rate.
-        let extra_gain = 2.5 * pow(sample_rate as f64 / 10000 as f64, 0.33);
+        let extra_gain = 2.5 * pow(sample_rate as f64 / 10000_f64, 0.33);
 
         let mut lp_noise_source = LpNoiseSource {
             lp_filter: LpFilter1::new(sample_rate),
@@ -555,7 +555,7 @@ impl<R: Rng> LpNoiseSource<R> {
     /// Returns an LP-filtered random number.
     pub fn get_next(&mut self) -> f64 {
         let x = get_white_noise(&mut self.rng);
-        return self.lp_filter.step(x);
+        self.lp_filter.step(x)
     }
 }
 
@@ -572,7 +572,7 @@ struct ImpulsiveGlottalSource {
 impl ImpulsiveGlottalSource {
     pub fn new(sample_rate: usize) -> Self {
         ImpulsiveGlottalSource {
-            sample_rate: sample_rate,
+            sample_rate,
             resonator: None,
             position_in_period: 0,
         }
@@ -611,7 +611,7 @@ impl ImpulsiveGlottalSource {
         };
 
         self.position_in_period += 1;
-        return self.resonator.as_mut().unwrap().step(pulse);
+        self.resonator.as_mut().unwrap().step(pulse)
     }
 }
 
@@ -670,7 +670,7 @@ impl NaturalGlottalSource {
         }
         self.a += self.b;
         self.x += self.a;
-        return self.x;
+        self.x
     }
 }
 
@@ -704,10 +704,10 @@ fn perform_frequency_modulation(f0: f64, flutter_level: f64, time: f64) -> f64 {
 /// Convert a dB value into a linear value.
 /// dB values of -99 and below or NaN are converted to 0.
 fn db_to_lin(db: f64) -> f64 {
-    if db <= -99.0 || db == core::f64::NAN {
-        return 0.0;
+    if db <= -99.0 || db.is_nan() {
+        0.0
     } else {
-        return pow(10.0, db / 20.0);
+        pow(10.0, db / 20.0)
     }
 }
 
@@ -913,7 +913,7 @@ pub struct Generator<'a, R> {
     rng: R,
 }
 impl<'a, R: Rng + Clone> Generator<'a, R> {
-    pub fn new(m_parms: &MainParms, mut rng: R) -> Result<Generator<R>, &'static str> {
+    pub fn new(m_parms: &MainParms, rng: R) -> Result<Generator<R>, &'static str> {
         let mut generator = Generator {
             m_parms,
             f_state: FrameState::new(),
@@ -1032,7 +1032,7 @@ impl<'a, R: Rng + Clone> Generator<'a, R> {
         let mut out = cascade_out + parallel_out;
         out = self.output_lp_filter.step(out);
         out *= self.f_state.gain_lin;
-        return out;
+        out
     }
 
     fn compute_cascade_branch(&mut self, voice: f64) -> f64 {
@@ -1055,7 +1055,7 @@ impl<'a, R: Rng + Clone> Generator<'a, R> {
         for i in 0..MAX_ORAL_FORMANTS {
             v = self.oral_formant_casc[i].step(v);
         }
-        return v;
+        v
     }
 
     fn compute_parallel_branch(&mut self, voice: f64) -> f64 {
@@ -1101,7 +1101,7 @@ impl<'a, R: Rng + Clone> Generator<'a, R> {
         }
         // bypass is applied to source difference + frication
         v += self.f_state.parallel_bypass_lin * source2;
-        return v;
+        v
     }
 
     /// Starts a new F0 period.
@@ -1112,10 +1112,10 @@ impl<'a, R: Rng + Clone> Generator<'a, R> {
             self.new_f_parms = None;
             self.start_using_new_frame_parameters()?;
         }
-        if let None = self.p_state {
+        if self.p_state.is_none() {
             self.p_state = Some(PeriodState::new());
         }
-        let mut p_state = self.p_state.as_mut().unwrap();
+        let p_state = self.p_state.as_mut().unwrap();
         let f_parms = self.f_parms.unwrap();
         let flutter_time = self.abs_position / self.m_parms.sample_rate + self.flutter_time_offset;
         p_state.f0 =
@@ -1249,13 +1249,13 @@ fn set_oral_formant_casc(
     let f = if i < f_parms.oral_formant_freq.len() {
         f_parms.oral_formant_freq[i]
     } else {
-        core::f64::NAN
+        f64::NAN
     };
 
     let bw = if i < f_parms.oral_formant_bw.len() {
         f_parms.oral_formant_bw[i]
     } else {
-        core::f64::NAN
+        f64::NAN
     };
 
     if f.is_finite() && bw.is_finite() {
@@ -1292,19 +1292,19 @@ fn set_oral_formant_par(
     let f = if i < f_parms.oral_formant_freq.len() {
         f_parms.oral_formant_freq[i]
     } else {
-        core::f64::NAN
+        f64::NAN
     };
 
     let bw = if i < f_parms.oral_formant_bw.len() {
         f_parms.oral_formant_bw[i]
     } else {
-        core::f64::NAN
+        f64::NAN
     };
 
     let db = if i < f_parms.oral_formant_db.len() {
         f_parms.oral_formant_db[i]
     } else {
-        core::f64::NAN
+        f64::NAN
     };
 
     let peak_gain = db_to_lin(db);
@@ -1355,7 +1355,7 @@ fn compute_rms(buf: &[f64]) -> f64 {
     for i in 0..n {
         acc += pow(buf[i], 2.0);
     }
-    return sqrt(acc / n as f64);
+    sqrt(acc / n as f64)
 }
 
 //------------------------------------------------------------------------------
@@ -1484,7 +1484,7 @@ fn get_parallel_branch_transfer_function_coefficients(
         // F1 is applied to source, F2 to F6 are applied to difference
         let formant_in = if i == 0 { &source } else { &source2 };
         let formant_out =
-            poly_real::multiply_fractions(&formant_in, &oral_pformant_trans, Some(EPS))?;
+            poly_real::multiply_fractions(formant_in, &oral_pformant_trans, Some(EPS))?;
         let alternating_sign = if i % 2 == 0 { 1.0 } else { -1.0 };
         let v2 = poly_real::multiply_fractions(
             &formant_out,

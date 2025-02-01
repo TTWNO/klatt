@@ -1,8 +1,7 @@
 use alloc::{vec, vec::Vec};
 use core::cmp::{max, min};
-use core::prelude::rust_2024::derive;
 use core::{
-    cmp::PartialEq, iter::Iterator, option::Option, option::Option::None, option::Option::Some,
+    iter::Iterator, option::Option,
     result::Result, result::Result::Err, result::Result::Ok,
 };
 
@@ -19,13 +18,13 @@ fn compare_equal(a1: &[f64], a2: &[f64], eps: Option<f64>) -> bool {
             return false;
         }
     }
-    return true;
+    true
 }
 
 /// Adds two real polynomials.
 fn add(a1: &[f64], a2: &[f64], eps: Option<f64>) -> Result<Vec<f64>, &'static str> {
-    let n1 = if a1.len() > 0 { a1.len() - 1 } else { 0 };
-    let n2 = if a2.len() > 0 { a2.len() - 1 } else { 0 };
+    let n1 = if !a1.is_empty() { a1.len() - 1 } else { 0 };
+    let n2 = if !a2.is_empty() { a2.len() - 1 } else { 0 };
     let n3 = max(n1, n2);
     let mut a3 = vec![0.0; n3 + 1];
     for i in 0..=n3 {
@@ -38,7 +37,7 @@ fn add(a1: &[f64], a2: &[f64], eps: Option<f64>) -> Result<Vec<f64>, &'static st
 
 /// Multiplies two real polynomials.
 fn multiply(a1: &[f64], a2: &[f64], eps: Option<f64>) -> Result<Vec<f64>, &'static str> {
-    if a1.len() == 0 || a2.len() == 0 {
+    if a1.is_empty() || a2.is_empty() {
         return Err("Zero len() arrays.");
     }
     if a1.len() == 1 && a1[0] == 0.0 || a2.len() == 1 && a2[0] == 0.0 {
@@ -50,20 +49,20 @@ fn multiply(a1: &[f64], a2: &[f64], eps: Option<f64>) -> Result<Vec<f64>, &'stat
     let mut a3 = vec![0.0; n3 + 1];
     for i in 0..=n3 {
         let mut t = 0.0;
-        let p1 = if i > n2 { i - n2 } else { 0 };
+        let p1 = i.saturating_sub(n2);
         let p2 = min(n1, i);
         for j in p1..=p2 {
             t += a1[j] * a2[i - j];
         }
         a3[i] = t;
     }
-    return trim(&a3, eps);
+    trim(&a3, eps)
 }
 
 /// Divides two real polynomials.
 /// Returns [quotient, remainder] = [a1 / a2, a1 % a2].
 fn divide(a1r: &[f64], a2r: &[f64], eps: Option<f64>) -> Result<Vec<Vec<f64>>, &'static str> {
-    if a1r.len() == 0 || a2r.len() == 0 {
+    if a1r.is_empty() || a2r.is_empty() {
         return Err("Zero len() arrays.");
     }
     let a1 = trim(a1r, eps)?;
@@ -92,21 +91,19 @@ fn divide(a1r: &[f64], a2r: &[f64], eps: Option<f64>) -> Result<Vec<Vec<f64>>, &
             a[i + j] -= r * a2[j];
         }
     }
-    let quotient = trim(&a[n2..].to_vec(), eps)?;
-    let remainder = trim(&a[0..n2].to_vec(), eps)?;
+    let quotient = trim(&a[n2..], eps)?;
+    let remainder = trim(&a[0..n2], eps)?;
     Ok(vec![quotient, remainder])
 }
 
 /// Returns the monic GCD (greatest common divisor) of two polynomials.
 fn gcd(a1: &[f64], a2: &[f64], eps: Option<f64>) -> Result<Vec<f64>, &'static str> {
-    let mut r1 = trim(&a1, eps)?;
-    let mut r2 = trim(&a2, eps)?;
+    let mut r1 = trim(a1, eps)?;
+    let mut r2 = trim(a2, eps)?;
     make_monic(&mut r1)?;
     make_monic(&mut r2)?;
     if r1.len() < r2.len() {
-        let t = r1;
-        r1 = r2;
-        r2 = t;
+        core::mem::swap(&mut r1, &mut r2);
     }
     loop {
         if r2.len() < 2 {
@@ -126,7 +123,7 @@ fn gcd(a1: &[f64], a2: &[f64], eps: Option<f64>) -> Result<Vec<f64>, &'static st
 /// Trims top order zero coefficients.
 fn trim(a: &[f64], eps: Option<f64>) -> Result<Vec<f64>, &'static str> {
     let eps = eps.unwrap_or(0.0);
-    if a.len() == 0 {
+    if a.is_empty() {
         return Err("Zero length array.");
     }
     if (a[a.len() - 1]).abs() > eps {
@@ -173,7 +170,7 @@ fn div_by_real(a: &[f64], b: f64) -> Vec<f64> {
     for i in 0..a.len() {
         a2[i] = a[i] / b;
     }
-    return a2;
+    a2
 }
 
 pub fn add_fractions(
