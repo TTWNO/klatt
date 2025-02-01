@@ -1,19 +1,10 @@
-use alloc::{
-	vec,
-	vec::Vec,
-};
-use core::{
-	iter::Iterator,
-	result::Result,
-	result::Result::Ok,
-	result::Result::Err,
-	option::Option,
-	option::Option::Some,
-	option::Option::None,
-	cmp::PartialEq,
-};
+use alloc::{vec, vec::Vec};
 use core::cmp::{max, min};
 use core::prelude::rust_2024::derive;
+use core::{
+    cmp::PartialEq, iter::Iterator, option::Option, option::Option::None, option::Option::Some,
+    result::Result, result::Result::Err, result::Result::Ok,
+};
 
 /// Returns `true` if two polynomials are equal.
 fn compare_equal(a1: &[f64], a2: &[f64], eps: Option<f64>) -> bool {
