@@ -1,24 +1,13 @@
-use rand::Rng;
-use core::prelude::rust_2024::derive;
 use crate::poly_real;
-use libm::{
-	sin, exp, cos, pow, sqrt, round,
-};
-use alloc::{
-	vec,
-	vec::Vec,
-};
-use core::{
-	iter::Iterator,
-	result::Result,
-	result::Result::Ok,
-	result::Result::Err,
-	option::Option,
-	option::Option::Some,
-	option::Option::None,
-	cmp::PartialEq,
-};
+use alloc::{vec, vec::Vec};
 use core::f64::consts::PI;
+use core::prelude::rust_2024::derive;
+use core::{
+    cmp::PartialEq, iter::Iterator, option::Option, option::Option::None, option::Option::Some,
+    result::Result, result::Result::Err, result::Result::Ok,
+};
+use libm::{cos, exp, pow, round, sin, sqrt};
+use rand::Rng;
 
 //--- Filters ------------------------------------------------------------------
 
@@ -266,7 +255,7 @@ impl Resonator {
         }
         self.r = exp(-PI * bw / (self.sample_rate as f64));
         let w = 2.0 * PI * f / (self.sample_rate as f64);
-        self.c = pow(-self.r, 2.0);
+        self.c = -pow(self.r, 2.0);
         self.b = 2.0 * self.r * cos(w);
         self.a = (1.0 - self.b - self.c) * dc_gain;
         self.passthrough = false;
@@ -528,14 +517,17 @@ impl DifferencingFilter {
 /// Returns a random number within the range -1 .. 1.
 fn get_white_noise<R: Rng>(rng: &mut R) -> f64 {
     // problem: -1 is included but +1 is not included
-    //return rng.random_range(-1.0..=1.0)
-		return 0.5;
+    //let x = rng.random::<f64>() * 2.0 - 1.0;
+    //assert!(x > -1.0);
+    //assert!(x <  1.0);
+    //x
+    return 0.5;
 }
 
 /// A low-pass filtered noise source.
 struct LpNoiseSource<R> {
     lp_filter: LpFilter1,
-		rng: R,
+    rng: R,
 }
 impl<R: Rng> LpNoiseSource<R> {
     pub fn new(sample_rate: usize, rng: R) -> Result<Self, &'static str> {
@@ -554,7 +546,7 @@ impl<R: Rng> LpNoiseSource<R> {
 
         let mut lp_noise_source = LpNoiseSource {
             lp_filter: LpFilter1::new(sample_rate),
-						rng,
+            rng,
         };
         lp_noise_source.lp_filter.set(f, g, Some(extra_gain))?;
         Ok(lp_noise_source)
@@ -715,7 +707,7 @@ fn db_to_lin(db: f64) -> f64 {
     if db <= -99.0 || db == core::f64::NAN {
         return 0.0;
     } else {
-        return pow(10f64, db / 20.0);
+        return pow(10.0, db / 20.0);
     }
 }
 
@@ -917,8 +909,8 @@ pub struct Generator<'a, R> {
     oral_formant_par: Vec<Resonator>,
     /// differencing filter for the parallel branch
     differencing_filter_par: DifferencingFilter,
-		/// random number generator function
-		rng: R,
+    /// random number generator function
+    rng: R,
 }
 impl<'a, R: Rng + Clone> Generator<'a, R> {
     pub fn new(m_parms: &MainParms, mut rng: R) -> Result<Generator<R>, &'static str> {
@@ -953,7 +945,7 @@ impl<'a, R: Rng + Clone> Generator<'a, R> {
             nasal_formant_par: Resonator::new(m_parms.sample_rate),
             oral_formant_par: Vec::with_capacity(MAX_ORAL_FORMANTS),
             differencing_filter_par: DifferencingFilter::new(),
-					rng,
+            rng,
         };
 
         generator
@@ -1130,7 +1122,7 @@ impl<'a, R: Rng + Clone> Generator<'a, R> {
             perform_frequency_modulation(f_parms.f0, f_parms.flutter_level, flutter_time as f64);
 
         p_state.period_length = if p_state.f0 > 0.0 {
-            ((self.m_parms.sample_rate as f64) / round(p_state.f0)) as usize
+            round((self.m_parms.sample_rate as f64) / p_state.f0) as usize
         } else {
             1
         };
@@ -1359,7 +1351,7 @@ fn adjust_signal_gain(buf: &mut [f64], target_rms: f64) {
 
 fn compute_rms(buf: &[f64]) -> f64 {
     let n = buf.len();
-    let mut acc = 0.0f64;
+    let mut acc = 0.0;
     for i in 0..n {
         acc += pow(buf[i], 2.0);
     }
@@ -1372,7 +1364,7 @@ fn compute_rms(buf: &[f64]) -> f64 {
 pub fn generate_sound<R: Rng + Clone>(
     m_parms: &MainParms,
     f_parms_a: &Vec<FrameParms>,
-		rng: R,
+    rng: R,
 ) -> Result<Vec<f64>, &'static str> {
     let mut generator = Generator::new(m_parms, rng)?;
     let mut out_buf_len = 0;
