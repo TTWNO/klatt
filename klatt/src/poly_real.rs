@@ -138,9 +138,7 @@ fn trim(a: &[f64], eps: Option<f64>) -> Result<Vec<f64>, &'static str> {
         return Ok(vec![0.0]);
     }
     let mut a2 = vec![0.0; len];
-    for i in 0..len {
-        a2[i] = a[i];
-    }
+    a2[..len].copy_from_slice(&a[..len]);
     Ok(a2)
 }
 
@@ -162,8 +160,8 @@ fn make_monic(a: &mut [f64]) -> Result<(), &'static str> {
         return Err("Leading coefficient is zero.");
     }
     a[len - 1] = 1.0;
-    for i in 0..len - 1 {
-        a[i] /= lc;
+    for a_i in a.iter_mut().take(len - 1) {
+        *a_i /= lc;
     }
     Ok(())
 }

@@ -633,7 +633,7 @@ struct NaturalGlottalSource {
     position_in_period: usize,
 }
 impl NaturalGlottalSource {
-    pub fn new() -> Result<Self, &'static str> {
+    pub fn new() -> Self {
         let mut natural_glottal_source = NaturalGlottalSource {
             x: 0.0,
             a: 0.0,
@@ -642,22 +642,21 @@ impl NaturalGlottalSource {
             position_in_period: 0,
         };
 
-        natural_glottal_source.start_period(0)?;
-        Ok(natural_glottal_source)
+        natural_glottal_source.start_period(0);
+        natural_glottal_source
     }
 
     /// ### params
     /// ```
     ///    open_phase_length = Duration of the open glottis phase of the F0 period, in samples.
     /// ```
-    pub fn start_period(&mut self, open_phase_length: usize) -> Result<(), &'static str> {
+    pub fn start_period(&mut self, open_phase_length: usize) {
         self.open_phase_length = open_phase_length;
         self.x = 0.0;
         let amplification = 5.0;
         self.b = -amplification / pow(open_phase_length as f64, 2.0);
         self.a = -self.b * open_phase_length as f64 / 3.0;
         self.position_in_period = 0;
-        Ok(())
     }
 
     pub fn get_next(&mut self) -> f64 {
@@ -790,6 +789,7 @@ pub struct FrameParms {
 }
 
 /// Variables of the currently active frame.
+#[allow(clippy::struct_field_names)]
 struct FrameState {
     /// linear breathiness level
     pub breathiness_lin: f64,
@@ -917,7 +917,7 @@ impl<'a, R: Rng + Clone> Generator<'a, R> {
             f_state: FrameState::new(),
             abs_position: 0,
             tilt_filter: LpFilter1::new(m_parms.sample_rate),
-            flutter_time_offset: (rng.random::<f64>() * 1000.0) as usize,
+            flutter_time_offset: rng.random_range(0..=1000),
             output_lp_filter: Resonator::new(m_parms.sample_rate),
             f_parms: None,
             new_f_parms: None,
@@ -949,7 +949,7 @@ impl<'a, R: Rng + Clone> Generator<'a, R> {
             .output_lp_filter
             .set(0.0, (m_parms.sample_rate as f64) / 2.0, None)?;
 
-        generator.init_glottal_source()?;
+        generator.init_glottal_source();
 
         for _ in 0..MAX_ORAL_FORMANTS {
             generator
@@ -977,17 +977,17 @@ impl<'a, R: Rng + Clone> Generator<'a, R> {
         }
 
         self.new_f_parms = Some(f_parms);
-        for out_pos in 0..out_buf.len() {
+        for out_pos in &mut *out_buf {
             match &self.p_state {
                 Some(p_state) => {
                     if p_state.position_in_period >= p_state.period_length {
-                        self.start_new_period()?
+                        self.start_new_period()?;
                     }
                 }
                 None => self.start_new_period()?,
             }
 
-            out_buf[out_pos] = self.compute_next_output_signal_sample();
+            *out_pos = self.compute_next_output_signal_sample();
             self.p_state.as_mut().unwrap().position_in_period += 1;
             self.abs_position += 1;
         }
@@ -1177,7 +1177,7 @@ impl<'a, R: Rng + Clone> Generator<'a, R> {
         Ok(())
     }
 
-    fn init_glottal_source(&mut self) -> Result<(), &'static str> {
+    fn init_glottal_source(&mut self) {
         match self.m_parms.glottal_source_type {
             GlottalSourceType::Impulsive => {
                 self.impulsive_g_source =
@@ -1186,7 +1186,7 @@ impl<'a, R: Rng + Clone> Generator<'a, R> {
                     |g: &mut Generator<R>| g.impulsive_g_source.as_mut().unwrap().get_next();
             }
             GlottalSourceType::Natural => {
-                self.natural_g_source = Some(NaturalGlottalSource::new()?);
+                self.natural_g_source = Some(NaturalGlottalSource::new());
                 self.glottal_source =
                     |g: &mut Generator<R>| g.natural_g_source.as_mut().unwrap().get_next();
             }
@@ -1194,7 +1194,6 @@ impl<'a, R: Rng + Clone> Generator<'a, R> {
                 self.glottal_source = |g: &mut Generator<R>| get_white_noise(&mut g.rng);
             }
         }
-        Ok(())
     }
 
     fn start_glottal_source_period(&mut self) -> Result<(), &'static str> {
@@ -1204,11 +1203,13 @@ impl<'a, R: Rng + Clone> Generator<'a, R> {
                 .as_mut()
                 .unwrap()
                 .start_period(self.p_state.as_ref().unwrap().open_phase_length),
-            GlottalSourceType::Natural => self
-                .natural_g_source
-                .as_mut()
-                .unwrap()
-                .start_period(self.p_state.as_ref().unwrap().open_phase_length),
+            GlottalSourceType::Natural => {
+                self.natural_g_source
+                    .as_mut()
+                    .unwrap()
+                    .start_period(self.p_state.as_ref().unwrap().open_phase_length);
+                Ok(())
+            }
             GlottalSourceType::Noise => Ok(()),
         }
     }
@@ -1350,23 +1351,22 @@ fn adjust_signal_gain(buf: &mut [f64], target_rms: f64) {
         return;
     }
     let r = target_rms / rms;
-    for i in 0..n {
-        buf[i] *= r;
+    for b_i in buf.iter_mut() {
+        *b_i *= r;
     }
 }
 
 fn compute_rms(buf: &[f64]) -> f64 {
-    let n = buf.len();
-    let mut acc = 0.0;
-    for i in 0..n {
-        acc += pow(buf[i], 2.0);
-    }
-    sqrt(acc / n as f64)
+    sqrt(buf.iter().map(|f| pow(*f, 2.0)).sum::<f64>() / buf.len() as f64)
 }
 
 //------------------------------------------------------------------------------
 
 /// Generates a sound that consists of multiple frames.
+///
+/// # Errors
+///
+/// Returns a static str if there is a problem with the [`m_parms`] and `f_parms_a`] values.
 pub fn generate_sound<R: Rng + Clone>(
     m_parms: &MainParms,
     f_parms_a: &Vec<FrameParms>,
@@ -1395,6 +1395,10 @@ const EPS: f64 = 1E-10;
 
 /// Returns the polynomial coefficients of the overall filter transfer function in the z-plane.
 /// The returned array contains the top and bottom coefficients of the rational fraction, ordered in ascending powers.
+///
+/// # Errors
+///
+/// Any invalid parameters will return a static str explaining the invalid param.
 pub fn get_vocal_tract_transfer_function_coefficients(
     m_parms: &MainParms,
     f_parms: &FrameParms,
