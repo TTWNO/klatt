@@ -1,4 +1,4 @@
-use crate::poly_real;
+use crate::{BasicFilter, Filter, poly_real};
 use alloc::{vec, vec::Vec};
 use core::f64::consts::PI;
 use core::prelude::rust_2024::derive;
@@ -24,7 +24,7 @@ use rand::Rng;
 ///    w = 2 * PI * f / sampleRate
 ///    g = gain at frequency f
 /// ```
-/// ## Filter function:
+/// ## BasicFilter function:
 /// ```text
 ///    y[n] = a * x[n] + b * y[n-1]
 /// ```
@@ -70,6 +70,38 @@ struct LpFilter1 {
     y1: f64,
     passthrough: bool,
     muted: bool,
+}
+impl BasicFilter for LpFilter1 {
+    /// Returns the polynomial coefficients of the filter transfer function in the z-plane.
+    /// The returned array contains the top and bottom coefficients of the rational fraction, ordered in ascending powers.
+    fn get_transfer_function_coefficients(&self) -> Vec<Vec<f64>> {
+        if self.passthrough {
+            return vec![vec![1.0], vec![1.0]];
+        }
+        if self.muted {
+            return vec![vec![0.0], vec![1.0]];
+        }
+        vec![vec![self.a], vec![1.0, -self.b]]
+    }
+
+    /// Performs a filter step.
+    /// ### params
+    /// ```text
+    ///    x = Input signal value.
+    /// ```
+    /// ### returns
+    ///    Output signal value.
+    fn step(&mut self, x: f64) -> f64 {
+        if self.passthrough {
+            return x;
+        }
+        if self.muted {
+            return 0.0;
+        }
+        let y = self.a * x + self.b * self.y1;
+        self.y1 = y;
+        y
+    }
 }
 impl LpFilter1 {
     /// @param sampleRate
@@ -127,37 +159,6 @@ impl LpFilter1 {
         self.muted = true;
         self.y1 = 0.0;
     }
-
-    /// Returns the polynomial coefficients of the filter transfer function in the z-plane.
-    /// The returned array contains the top and bottom coefficients of the rational fraction, ordered in ascending powers.
-    pub fn get_transfer_function_coefficients(&self) -> Vec<Vec<f64>> {
-        if self.passthrough {
-            return vec![vec![1.0], vec![1.0]];
-        }
-        if self.muted {
-            return vec![vec![0.0], vec![1.0]];
-        }
-        vec![vec![self.a], vec![1.0, -self.b]]
-    }
-
-    /// Performs a filter step.
-    /// ### params
-    /// ```text
-    ///    x = Input signal value.
-    /// ```
-    /// ### returns
-    ///    Output signal value.
-    pub fn step(&mut self, x: f64) -> f64 {
-        if self.passthrough {
-            return x;
-        }
-        if self.muted {
-            return 0.0;
-        }
-        let y = self.a * x + self.b * self.y1;
-        self.y1 = y;
-        y
-    }
 }
 
 /// A Klatt resonator.
@@ -177,7 +178,7 @@ impl LpFilter1 {
 ///    bw = Bandwidth in Hz
 ///    r = exp(- PI * bw / sampleRate)
 /// ```
-/// ## Filter function:
+/// ## BasicFilter function:
 /// ```text
 ///    y[n] = a * x[n] + b * y[n-1] + c * y[n-2]
 /// ```
@@ -288,10 +289,11 @@ impl Resonator {
         self.a = peak_gain * (1.0 - self.r);
         Ok(())
     }
-
+}
+impl BasicFilter for Resonator {
     /// Returns the polynomial coefficients of the filter transfer function in the z-plane.
     /// The returned array contains the top and bottom coefficients of the rational fraction, ordered in ascending powers.
-    pub fn get_transfer_function_coefficients(&self) -> Vec<Vec<f64>> {
+    fn get_transfer_function_coefficients(&self) -> Vec<Vec<f64>> {
         if self.passthrough {
             return vec![vec![1.0], vec![1.0]];
         }
@@ -308,7 +310,7 @@ impl Resonator {
     /// ```
     /// ### returns
     ///    Output signal value.
-    pub fn step(&mut self, x: f64) -> f64 {
+    fn step(&mut self, x: f64) -> f64 {
         if self.passthrough {
             return x;
         }
@@ -334,7 +336,7 @@ impl Resonator {
 ///    f = frequency in Hz
 ///    w = 2 * PI * f / sampleRate
 /// ```
-/// # Filter function:
+/// # BasicFilter function:
 /// ```text
 ///    y[n] = a * x[n] + b * x[n-1] + c * x[n-2]
 /// ```
@@ -424,10 +426,11 @@ impl AntiResonator {
         self.x1 = 0.0;
         self.x2 = 0.0;
     }
-
+}
+impl BasicFilter for AntiResonator {
     /// Returns the polynomial coefficients of the filter transfer function in the z-plane.
     /// The returned array contains the top and bottom coefficients of the rational fraction, ordered in ascending powers.
-    pub fn get_transfer_function_coefficients(&self) -> Vec<Vec<f64>> {
+    fn get_transfer_function_coefficients(&self) -> Vec<Vec<f64>> {
         if self.passthrough {
             return vec![vec![1.0], vec![1.0]];
         }
@@ -443,7 +446,7 @@ impl AntiResonator {
     /// ```
     /// ### returns
     ///    Output signal value.
-    pub fn step(&mut self, x: f64) -> f64 {
+    fn step(&mut self, x: f64) -> f64 {
         if self.passthrough {
             return x;
         }
@@ -473,7 +476,7 @@ impl AntiResonator {
 ///    f = frequency in Hz
 ///    w = 2 * PI * f / sampleRate
 /// ```
-/// ## Filter function:
+/// ## BasicFilter function:
 /// ```text
 ///    y[n] = x[n] - x[n-1]
 /// ```
@@ -493,9 +496,11 @@ impl DifferencingFilter {
     pub fn new() -> Self {
         DifferencingFilter { x1: 0.0 }
     }
+}
+impl BasicFilter for DifferencingFilter {
     // Returns the polynomial coefficients of the filter transfer function in the z-plane.
     // The returned array contains the top and bottom coefficients of the rational fraction, ordered in ascending powers.
-    pub fn get_transfer_function_coefficients() -> Vec<Vec<f64>> {
+    fn get_transfer_function_coefficients(&self) -> Vec<Vec<f64>> {
         vec![vec![1.0, -1.0], vec![1.0]]
     }
     /// Performs a filter step.
@@ -505,7 +510,7 @@ impl DifferencingFilter {
     /// ```
     /// ### returns
     ///    Output signal value.
-    pub fn step(&mut self, x: f64) -> f64 {
+    fn step(&mut self, x: f64) -> f64 {
         let y = x - self.x1;
         self.x1 = x;
         y
@@ -1474,7 +1479,8 @@ fn get_parallel_branch_transfer_function_coefficients(
     let parallel_voicing_lin = db_to_lin(f_parms.parallel_voicing_db);
     let source: Vec<Vec<f64>> = vec![vec![parallel_voicing_lin], vec![1.0]];
     //
-    let differencing_filter_trans = DifferencingFilter::get_transfer_function_coefficients();
+    let differencing_filter = DifferencingFilter::new();
+    let differencing_filter_trans = differencing_filter.get_transfer_function_coefficients();
     let source2 = poly_real::multiply_fractions(&source, &differencing_filter_trans, Some(EPS))?;
     //
     let mut v: Vec<Vec<f64>> = vec![vec![0.0], vec![1.0]];

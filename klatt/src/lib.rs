@@ -16,6 +16,8 @@
 
 extern crate alloc;
 
+mod traits;
+pub use traits::{BasicFilter, Filter};
 mod klatt;
 pub use klatt::{
     FrameParms, GlottalSourceType, MainParms, generate_sound,
