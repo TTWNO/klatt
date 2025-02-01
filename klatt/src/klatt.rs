@@ -15,7 +15,7 @@ use rand::Rng;
 ///
 /// # Formulas:
 /// ## Variables:
-/// ```
+/// ```text
 ///    x = input samples
 ///    y = output samples
 ///    a = first filter coefficient
@@ -25,31 +25,31 @@ use rand::Rng;
 ///    g = gain at frequency f
 /// ```
 /// ## Filter function:
-/// ```
+/// ```text
 ///    y[n] = a * x[n] + b * y[n-1]
 /// ```
 /// ## Transfer function:
-/// ```
+/// ```text
 ///    H(w) = a / ( 1 - b * e^(-jw) )
 /// ```
 /// ## Frequency response:
-/// ```
+/// ```text
 ///    |H(w)| = a / sqrt(1 - 2b * cos(w) + b^2)
 /// ```
 /// ## Gain at DC:
-/// ```
+/// ```text
 ///    |H(0)| = a / sqrt(1 - 2b * cos(0) + b^2)
 ///           = a / sqrt(1 - 2b + b^2)
 ///           = a / (1 - b)                                 for b < 1
 /// ```
 /// ## Cutoff frequency for LP filter (frequency with relative gain 0.5, about -3 dB):
-/// ```
+/// ```text
 ///    |H(fCutoff)| = |H(0)| / 2
 ///    a / sqrt(1 - 2b * cos(w) + b^2) = a / (2 * (1 - b))
 ///    fCutoff = acos((-3b^2 + 8b - 3) / 2b) * sampleRate / (2 * PI)
 /// ```
 /// ## Determine b for a given gain g at frequency f and |H(0)| = 1:
-/// ```
+/// ```text
 ///    a = 1 - b
 ///    g = (1 - b) / sqrt(1 - 2b * cos(w) + b^2)
 ///    g * sqrt(1 - 2b * cos(w) + b^2) = 1 - b
@@ -87,7 +87,7 @@ impl LpFilter1 {
 
     /// Adjusts the filter parameters without resetting the inner state.
     /// ### params
-    /// ```
+    /// ```text
     ///    f = Frequency at which the gain is specified.
     ///    g = Gain at frequency f. Between 0 and 1 for LP filter. Greater than 1 for HP filter.
     ///    extra_gain = Extra gain factor. This is the resulting DC gain.
@@ -142,7 +142,7 @@ impl LpFilter1 {
 
     /// Performs a filter step.
     /// ### params
-    /// ```
+    /// ```text
     ///    x = Input signal value.
     /// ```
     /// ### returns
@@ -166,7 +166,7 @@ impl LpFilter1 {
 ///
 /// # Formulas:
 /// ## Variables:
-/// ```
+/// ```text
 ///    x = input samples
 ///    y = output samples
 ///    a/b/c = filter coefficients
@@ -178,25 +178,25 @@ impl LpFilter1 {
 ///    r = exp(- PI * bw / sampleRate)
 /// ```
 /// ## Filter function:
-/// ```
+/// ```text
 ///    y[n] = a * x[n] + b * y[n-1] + c * y[n-2]
 /// ```
 /// ## Transfer function:
-/// ```
+/// ```text
 ///    H(w) = a / ( 1 - b * e^(-jw) - c * e^(-2jw) )
 /// ```
 /// ## Frequency response:
-/// ```
+/// ```text
 ///    |H(w)| = a / ( sqrt(1 + r^2 - 2 * r * cos(w - w0)) * sqrt(1 + r^2 - 2 * r * cos(w + w0)) )
 /// ```
 /// ## Gain at DC:
-/// ```
+/// ```text
 ///    |H(0)| = a / ( sqrt(1 + r^2 - 2 * r * cos(0 - w0)) * sqrt(1 + r^2 - 2 * r * cos(0 + w0)) )
 ///           = a / (1 + r^2 - 2 * r * cos(w0))
 ///           = a / (1 - c - b)
 /// ```
 /// ## Gain at the resonance frequency:
-/// ```
+/// ```text
 ///    |H(f0)| = a / sqrt(1 + r^2 - 2 * r)
 ///            = a / (1 - r)
 /// ```
@@ -218,7 +218,7 @@ struct Resonator {
 }
 impl Resonator {
     /// ### params
-    /// ```
+    /// ```text
     /// sample_rate = Sample rate in Hz.
     /// ```
     fn new(sample_rate: usize) -> Self {
@@ -236,7 +236,7 @@ impl Resonator {
     }
     /// Adjusts the filter parameters without resetting the inner state.
     /// ### params
-    /// ```
+    /// ```text
     /// f = Frequency of resonator in Hz. May be 0 for LP filtering.
     /// bw = Bandwidth of resonator in Hz.
     /// dc_gain = DC gain level.
@@ -303,7 +303,7 @@ impl Resonator {
 
     /// Performs a filter step.
     /// ### params
-    /// ```
+    /// ```text
     ///    x = Input signal value.
     /// ```
     /// ### returns
@@ -327,7 +327,7 @@ impl Resonator {
 ///
 /// # Formulas:
 /// ## Variables:
-/// ```
+/// ```text
 ///    x = input samples
 ///    y = output samples
 ///    a/b/c = filter coefficients
@@ -335,11 +335,11 @@ impl Resonator {
 ///    w = 2 * PI * f / sampleRate
 /// ```
 /// # Filter function:
-/// ```
+/// ```text
 ///    y[n] = a * x[n] + b * x[n-1] + c * x[n-2]
 /// ```
 /// # Transfer function:
-/// ```
+/// ```text
 ///    H(w) = a + b * e^(-jw) + c * e^(-2jw)
 /// ```
 struct AntiResonator {
@@ -359,7 +359,7 @@ struct AntiResonator {
 }
 impl AntiResonator {
     /// ### params
-    /// ```
+    /// ```text
     ///    sample_rate = Sample rate in Hz.
     /// ```
     pub fn new(sample_rate: usize) -> Self {
@@ -378,7 +378,7 @@ impl AntiResonator {
 
     /// Adjusts the filter parameters without resetting the inner state.
     /// ### params
-    /// ```
+    /// ```text
     ///    f = Frequency of anti-resonator in Hz.
     ///    bw = bandwidth of anti-resonator in Hz.
     /// ```
@@ -438,7 +438,7 @@ impl AntiResonator {
     }
     /// Performs a filter step.
     /// ### params
-    /// ```
+    /// ```text
     ///    x = Input signal value.
     /// ```
     /// ### returns
@@ -467,22 +467,22 @@ impl AntiResonator {
 ///
 /// # Formulas:
 /// ## Variables:
-/// ```
+/// ```text
 ///    x = input samples
 ///    y = output samples
 ///    f = frequency in Hz
 ///    w = 2 * PI * f / sampleRate
 /// ```
 /// ## Filter function:
-/// ```
+/// ```text
 ///    y[n] = x[n] - x[n-1]
 /// ```
 /// ## Transfer function:
-/// ```
+/// ```text
 ///    H(w) = 1 - e^(-jw)
 /// ```
 /// ## Frequency response:
-/// ```
+/// ```text
 ///    |H(w)| = sqrt(2 - 2 * cos(w))
 /// ```
 struct DifferencingFilter {
@@ -500,7 +500,7 @@ impl DifferencingFilter {
     }
     /// Performs a filter step.
     /// ### params
-    /// ```
+    /// ```text
     ///    x = Input signal value.
     /// ```
     /// ### returns
@@ -576,7 +576,7 @@ impl ImpulsiveGlottalSource {
         }
     }
     /// ### params
-    /// ```
+    /// ```text
     ///    open_phase_length = Duration of the open glottis phase of the F0 period, in samples.
     /// ```
     pub fn start_period(&mut self, open_phase_length: usize) -> Result<(), &'static str> {
@@ -647,7 +647,7 @@ impl NaturalGlottalSource {
     }
 
     /// ### params
-    /// ```
+    /// ```text
     ///    open_phase_length = Duration of the open glottis phase of the F0 period, in samples.
     /// ```
     pub fn start_period(&mut self, open_phase_length: usize) {
@@ -681,7 +681,7 @@ impl NaturalGlottalSource {
 /// realistic deviation from constant pitch.
 ///
 /// ### params
-/// ```
+/// ```text
 ///    f0 = Fundamental frequency.
 ///    flutter_level = Flutter level between 0 and 1.
 ///    time = Relative signal position in seconds.
@@ -1366,7 +1366,7 @@ fn compute_rms(buf: &[f64]) -> f64 {
 ///
 /// # Errors
 ///
-/// Returns a static str if there is a problem with the [`m_parms`] and `f_parms_a`] values.
+/// Returns a static str if there is a problem with the `m_parms` and `f_parms_a` values.
 pub fn generate_sound<R: Rng + Clone>(
     m_parms: &MainParms,
     f_parms_a: &Vec<FrameParms>,
