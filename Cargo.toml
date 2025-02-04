@@ -2,7 +2,7 @@
 name = "klatt"
 version = "0.1.0"
 edition = "2024"
-license = "MIT or Apache-2.0"
+license = "MIT OR Apache-2.0"
 description = "Klatt Formant Speech Synthesis, without the standard library!"
 readme = "README.md"
 repository = "https://github.com/TTWNO/klatt/"
