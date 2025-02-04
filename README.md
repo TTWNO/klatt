@@ -5,6 +5,10 @@ This is based on the original reference implementation included in the `referenc
 
 Made to be fully `no_std` compatible.
 
+**NOTE:** This is _not a text to speech engine_!
+This is a set of algorithms designed to synthesize "speech sounding" audio samples from a variety of voice-related parameters.
+Text-to-speech engines can use this to generate speech, but they need to have the right kind of parameters to feed into this algorithm.
+
 ## Future Goals
 
 - [ ] `no_alloc`
