@@ -20,7 +20,7 @@ jobs:
   feature-unification:
     runs-on: ubuntu-latest
     needs: [rustfmt,no-unused-dependencies,no-std-compatible]
-    name: nightly Clippy
+    name: Feature Unification
     steps:
       - name: Git checkout
         uses: actions/checkout@v3
@@ -39,6 +39,8 @@ jobs:
                ${{ runner.os }}-x86_64-unknown-linux-gnu-build-${{ env.cache-name }}-
       - name: Install Cargo
         uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
       - name: Install Hack
         uses: taiki-e/install-action@cargo-hack
       - name: Cargo hack
