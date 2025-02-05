@@ -2,7 +2,6 @@ use crate::math::{cos, exp, pow, round, sin, sqrt};
 use crate::{poly_real, BasicFilter};
 use alloc::{vec, vec::Vec};
 use core::f64::consts::PI;
-use core::prelude::rust_2024::derive;
 use core::{
     cmp::PartialEq, option::Option, option::Option::None, option::Option::Some, result::Result,
     result::Result::Err, result::Result::Ok,
