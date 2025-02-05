@@ -1,5 +1,5 @@
 use crate::math::{cos, exp, pow, round, sin, sqrt};
-use crate::{BasicFilter, poly_real};
+use crate::{poly_real, BasicFilter};
 use alloc::{vec, vec::Vec};
 use core::f64::consts::PI;
 use core::prelude::rust_2024::derive;

@@ -2,7 +2,7 @@ use hound::{SampleFormat, WavSpec, WavWriter};
 use klatt::{generate_sound, get_vocal_tract_transfer_function_coefficients};
 mod _params;
 use _params::{f_params, m_parms};
-use rand::{SeedableRng, rngs::mock::StepRng};
+use rand::{rngs::mock::StepRng, SeedableRng};
 
 fn run_generate_sound() {
     // used for deterministic, portable output

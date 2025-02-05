@@ -33,7 +33,7 @@ pub use traits::{BasicFilter, Filter};
 mod klatt;
 mod math;
 pub use klatt::{
-    FrameParms, GlottalSourceType, MainParms, generate_sound,
-    get_vocal_tract_transfer_function_coefficients,
+    generate_sound, get_vocal_tract_transfer_function_coefficients, FrameParms, GlottalSourceType,
+    MainParms,
 };
 mod poly_real;
