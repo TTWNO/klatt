@@ -1,0 +1,249 @@
+name: CI
+env:
+  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+on: 
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+jobs:
+  find-msrv:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.step2.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: step2
+        run: echo "version=`cat Cargo.toml | sed -n 's/rust-version = "\(.*\)"/\1/p'`" >> "$GITHUB_OUTPUT"
+  clippy:
+    runs-on: ubuntu-latest
+    needs: [rustfmt,no-unused-dependencies,no-std-compatible]
+    name: nightly Clippy
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v3
+      - name: Cache cargo home
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-cargo-home
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: ${{ runner.os }}-x86_64-unknown-linux-gnu-build-${{ env.cache-name }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+               ${{ runner.os }}-x86_64-unknown-linux-gnu-build-${{ env.cache-name }}-
+      - name: Install nightly
+        uses: dtolnay/rust-toolchain@master
+        with:
+          components: clippy
+          toolchain: nightly
+      - name: Clippy
+        run: cargo clippy --tests --workspace --no-deps -- -D warnings 
+  tests:
+    runs-on: ubuntu-latest
+    needs: [clippy,no-unused-dependencies]
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v3
+      - name: Cache cargo home
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-cargo-home
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: ${{ runner.os }}-x86_64-unknown-linux-gnu-build-${{ env.cache-name }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-x86_64-unknown-linux-gnu-build-${{ env.cache-name }}-
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - name: Run Tests (std)
+        run: cargo test --workspace --no-default-features --features=std -- --nocapture
+      - name: Run Tests (libm)
+        run: cargo test --workspace --no-default-features --features=libm -- --nocapture
+  rustfmt:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v3
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: rustfmt
+      - name: Run formatter
+        run: cargo fmt --all --check
+  rustdoc:
+    runs-on: ubuntu-latest
+    needs: [clippy,no-unused-dependencies]
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v3
+      - name: Cache cargo home
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-cargo-home
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: ${{ runner.os }}-x86_64-unknown-linux-gnu-build-${{ env.cache-name }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-x86_64-unknown-linux-gnu-build-${{ env.cache-name }}-
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+      - name: Generate Documentation
+        run: cargo doc --workspace --no-deps --document-private-items
+  cargo-deny:
+    runs-on: ubuntu-latest
+    needs: [rustfmt]
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v3
+      - name: Cache cargo home
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-cargo-home
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: ${{ runner.os }}-x86_64-unknown-linux-gnu-build-${{ env.cache-name }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-x86_64-unknown-linux-gnu-build-${{ env.cache-name }}-
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - name: Install Deny
+        uses: taiki-e/install-action@cargo-deny
+      - name: Check For Unsuitable Licenses
+        run: cargo deny check licenses
+      - name: Check For Known Security Vulnerabilities
+        run: cargo deny check advisories
+      - name: Check For Unknown Repositories
+        run: cargo deny check sources
+  no-unused-dependencies:
+    runs-on: ubuntu-latest
+    needs: [rustfmt]
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v3
+      - name: Cache cargo home
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-cargo-home
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: ${{ runner.os }}-x86_64-unknown-linux-gnu-build-${{ env.cache-name }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-x86_64-unknown-linux-gnu-build-${{ env.cache-name }}-
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - name: Install Cargo Machete
+        uses: taiki-e/install-action@cargo-machete
+      - name: Check For Unused Dependencies
+        run: cargo machete
+  semver-compliance:
+    runs-on: ubuntu-latest
+    needs: [clippy,no-unused-dependencies]
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v3
+      - name: Cache cargo home
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-cargo-home
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: ${{ runner.os }}-x86_64-unknown-linux-gnu-build-${{ env.cache-name }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-x86_64-unknown-linux-gnu-build-${{ env.cache-name }}-
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - name: Install Semver Checks
+        # no default features so that it uses native Rust TLS instead of trying to link with system TLS.
+        uses: taiki-e/install-action@main
+        with:
+          tool: cargo-semver-checks
+      - name: Check Semver Compliance (std)
+        run: cargo semver-checks check-release --no-default-features --features=std
+      - name: Check Semver Compliance (libm)
+        run: cargo semver-checks check-release --no-default-featuress --features=libm
+  msrv-compliance:
+    runs-on: ubuntu-latest
+    needs: [clippy,no-unused-dependencies,find-msrv]
+    steps:
+      - name: install stable toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ needs.find-msrv.outputs.version }}
+      - name: Git checkout
+        uses: actions/checkout@v3
+      - name: Check MSRV Compliance
+        run: cargo test --workspace --no-run --all-features
+  no-std-compatible:
+    runs-on: ubuntu-latest
+    needs: [rustfmt]
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v3
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - name: Install `no_std` target(s)
+        run: rustup target add x86_64-unknown-none
+      - name: Test Compilation
+        run: cargo build --no-default-features --features libm --target x86_64-unknown-none
+  coverage:
+    runs-on: ubuntu-latest
+    needs: [clippy,no-unused-dependencies]
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v3
+      - name: Install nightly
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: llvm-tools-preview
+      - name: cargo install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+      - name: cargo generate-lockfile
+        if: hashFiles('Cargo.lock') == ''
+        run: cargo generate-lockfile
+      - name: cargo llvm-cov
+        run: cargo llvm-cov --workspace --locked --lcov --output-path lcov.info
+      - name: Upload to codecov.io
+        uses: codecov/codecov-action@v4
+        with:
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
