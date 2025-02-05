@@ -38,3 +38,5 @@ pub fn f_params() -> FrameParms {
         oral_formant_db: vec![0.0, -8.0, -15.0, -19.0, -30.0, -35.0],
     }
 }
+
+fn main() {}
