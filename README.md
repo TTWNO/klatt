@@ -28,8 +28,9 @@ This allows you to test against changes to make sure it didn't break anything :)
 
 ## `no_std` Support
 
-This library is unconditionally `no_std` compatible.
-However, we do take a dependency on `rand`; make sure if you use it, you disable its default features.
+This library is `no_std` compatible by disabling default features, and enabling the `libm` feature;
+this allows math operations not included in `core`.
+We also take a dependency on `rand`; make sure if you use it, you disable its `std`-dependent features.
 
 THe primary way to make sound—through the `generate_sound` function—is generic over any `Rng` implementation.
 Feel free to write your own, or use `SmallRng` for use in embedded environments.
