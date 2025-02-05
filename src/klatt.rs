@@ -1,4 +1,5 @@
-use crate::{BasicFilter, Filter, poly_real};
+use crate::math::{cos, exp, pow, round, sin, sqrt};
+use crate::{BasicFilter, poly_real};
 use alloc::{vec, vec::Vec};
 use core::f64::consts::PI;
 use core::prelude::rust_2024::derive;
@@ -6,7 +7,6 @@ use core::{
     cmp::PartialEq, option::Option, option::Option::None, option::Option::Some, result::Result,
     result::Result::Err, result::Result::Ok,
 };
-use libm::{cos, exp, pow, round, sin, sqrt};
 use rand::Rng;
 
 //--- Filters ------------------------------------------------------------------
@@ -24,7 +24,7 @@ use rand::Rng;
 ///    w = 2 * PI * f / sampleRate
 ///    g = gain at frequency f
 /// ```
-/// ## BasicFilter function:
+/// ## `BasicFilter` function:
 /// ```text
 ///    y[n] = a * x[n] + b * y[n-1]
 /// ```
@@ -178,7 +178,7 @@ impl LpFilter1 {
 ///    bw = Bandwidth in Hz
 ///    r = exp(- PI * bw / sampleRate)
 /// ```
-/// ## BasicFilter function:
+/// ## `BasicFilter` function:
 /// ```text
 ///    y[n] = a * x[n] + b * y[n-1] + c * y[n-2]
 /// ```
@@ -336,7 +336,7 @@ impl BasicFilter for Resonator {
 ///    f = frequency in Hz
 ///    w = 2 * PI * f / sampleRate
 /// ```
-/// # BasicFilter function:
+/// # `BasicFilter` function:
 /// ```text
 ///    y[n] = a * x[n] + b * x[n-1] + c * x[n-2]
 /// ```
@@ -476,7 +476,7 @@ impl BasicFilter for AntiResonator {
 ///    f = frequency in Hz
 ///    w = 2 * PI * f / sampleRate
 /// ```
-/// ## BasicFilter function:
+/// ## `BasicFilter` function:
 /// ```text
 ///    y[n] = x[n] - x[n-1]
 /// ```

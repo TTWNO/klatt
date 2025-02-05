@@ -7,10 +7,15 @@ description = "Klatt Formant Speech Synthesis, without the standard library!"
 readme = "README.md"
 repository = "https://github.com/TTWNO/klatt/"
 keywords = ["klatt"]
-categories = ["no-std", "embedded", "speech", "accessibility", "multimedia::audio"]
+categories = ["no-std", "embedded", "speech", "multimedia::audio"]
+
+[features]
+default = ["std"]
+std = []
+libm = ["dep:libm"]
 
 [dependencies]
-libm = { version = "0.2.11", default-features = false }
+libm = { version = "0.2.11", default-features = false, optional = true }
 rand = { version = "0.9.0", default-features = false }
 
 [dev-dependencies]
