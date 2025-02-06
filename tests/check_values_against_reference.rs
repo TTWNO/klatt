@@ -1,7 +1,5 @@
-use hound::{
-    WavReader,
-};
-use klatt::{FrameParms, GlottalSourceType, MainParms, generate_sound};
+use hound::WavReader;
+use klatt::{generate_sound, FrameParms, GlottalSourceType, MainParms};
 use rand::rngs::mock::StepRng;
 
 /// When comparing against the reference sample, consider differences in value of:
@@ -53,11 +51,13 @@ fn f_params() -> FrameParms {
 fn compare_to_reference_audio() {
     // used for deterministic, portable output
     let rng = StepRng::new(0, 0x12f6);
-    let mut reader = WavReader::open(
-        "reference.wav",
-    ).unwrap();
+    let mut reader = WavReader::open("reference.wav").unwrap();
     let sound = generate_sound(&m_parms(), &vec![f_params()], rng).unwrap();
-    for (i,(maybe_ref_sample, gen_sample)) in reader.samples::<f32>().zip(sound.into_iter().map(|sample| sample as f32)).enumerate() {
+    for (i, (maybe_ref_sample, gen_sample)) in reader
+        .samples::<f32>()
+        .zip(sound.into_iter().map(|sample| sample as f32))
+        .enumerate()
+    {
         let Ok(ref_sample) = maybe_ref_sample else {
             panic!("The reference sample {i} is not able to be read from the wav file.");
         };
